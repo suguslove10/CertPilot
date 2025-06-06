@@ -263,33 +263,26 @@ const issueCertificate = async (domain, email, userId) => {
     const keyAuthorization = await client.getChallengeKeyAuthorization(challenge);
     console.log(`Raw key authorization: ${keyAuthorization}`);
     
-    // Get authorization digest using the ACME client's helper function or calculate manually
-    let keyAuthDigest;
-    try {
-      if (typeof acme.crypto.dns01 === 'function') {
-        keyAuthDigest = acme.crypto.dns01(keyAuthorization);
-        console.log('Using built-in acme.crypto.dns01 function');
-      } else {
-        console.log('acme.crypto.dns01 function not available, calculating manually');
-        keyAuthDigest = crypto.createHash('sha256')
-          .update(keyAuthorization)
-          .digest('base64')
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=/g, '');
-      }
-    } catch (error) {
-      console.error('Error calculating DNS digest, falling back to manual calculation:', error);
-      keyAuthDigest = crypto.createHash('sha256')
-        .update(keyAuthorization)
-        .digest('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-    }
+    // Calculate the value exactly as specified in RFC 8555 for DNS-01 challenge
+    // The value is the base64url-encoded SHA-256 digest of the key authorization
+    const keyAuthDigest = crypto.createHash('sha256')
+      .update(keyAuthorization)
+      .digest();
+
+    // Encode to base64url as specified in RFC 8555 section 8.4
+    const base64url = keyAuthDigest.toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    
+    // Log the calculations for debugging
+    console.log('DNS-01 challenge details:');
+    console.log(`- Raw key authorization: ${keyAuthorization}`);
+    console.log(`- SHA-256 hex: ${keyAuthDigest.toString('hex')}`);
+    console.log(`- Base64url value: ${base64url}`);
     
     console.log(`DNS challenge record: ${dnsRecordName}`);
-    console.log(`DNS challenge value: ${keyAuthDigest}`);
+    console.log(`DNS challenge value: ${base64url}`);
     
     // Create TXT record in Route53
     const dnsParams = {
@@ -304,7 +297,7 @@ const issueCertificate = async (domain, email, userId) => {
               TTL: 60,
               ResourceRecords: [
                 {
-                  Value: `"${keyAuthDigest}"`
+                  Value: `"${base64url}"`
                 }
               ]
             }
@@ -324,7 +317,7 @@ const issueCertificate = async (domain, email, userId) => {
     // Actively check for DNS propagation with retries
     const propagated = await checkDnsTxtPropagation(
       dnsRecordName,
-      keyAuthDigest,
+      base64url,
       10,  // 10 attempts
       15000 // 15 seconds between attempts
     );
@@ -423,11 +416,19 @@ const issueCertificate = async (domain, email, userId) => {
     // Export private key directly in PEM format
     const privateKeyPem = domainKeyPair.toString();
     
-    await Promise.all([
-      fs.writeFile(certPath, cert),
-      fs.writeFile(keyPath, privateKeyPem),
-      fs.writeFile(chainPath, cert) // For simplicity, using cert as chain
-    ]);
+    try {
+      await fs.writeFile(certPath, cert);
+      await fs.writeFile(keyPath, privateKeyPem);
+      await fs.writeFile(chainPath, cert); // For simplicity, using cert as chain
+      
+      console.log('Certificate files saved successfully:');
+      console.log(`- Certificate: ${certPath}`);
+      console.log(`- Private Key: ${keyPath}`);
+      console.log(`- Chain: ${chainPath}`);
+    } catch (fileError) {
+      console.error('Error saving certificate files:', fileError);
+      throw new Error(`Failed to save certificate files: ${fileError.message}`);
+    }
     
     console.log('Certificate issued successfully');
     
@@ -445,7 +446,7 @@ const issueCertificate = async (domain, email, userId) => {
                   Name: `${dnsRecordName}.`,
                   Type: 'TXT',
                   TTL: 60,
-                  ResourceRecords: [{ Value: `"${keyAuthDigest}"` }]
+                  ResourceRecords: [{ Value: `"${base64url}"` }]
                 }
               }
             ]
