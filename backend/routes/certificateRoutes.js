@@ -98,6 +98,36 @@ const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 1
   return false;
 };
 
+// Function to check DNS TXT record with ACME client's verification method
+const verifyDnsTxtWithAcme = async (domain, keyAuthorization) => {
+  const dns = require('dns').promises;
+  const recordName = `_acme-challenge.${domain}`;
+  const expectedDigest = await acme.crypto.createDnsRecordText(keyAuthorization);
+  
+  console.log(`Performing ACME-style verification for ${recordName}`);
+  console.log(`Expected digest: ${expectedDigest}`);
+  
+  try {
+    const txtRecords = await dns.resolveTxt(recordName);
+    console.log(`Found TXT records: ${JSON.stringify(txtRecords)}`);
+    
+    // Flatten and check for exact match
+    const flatRecords = [].concat(...txtRecords);
+    console.log(`Flattened records: ${JSON.stringify(flatRecords)}`);
+    
+    if (flatRecords.includes(expectedDigest)) {
+      console.log('✓ TXT record matches expected digest!');
+      return true;
+    } else {
+      console.log('✗ TXT record does not match expected digest');
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error resolving TXT record: ${error.message}`);
+    return false;
+  }
+};
+
 // Function to issue certificate using ACME client (Let's Encrypt)
 const issueCertificate = async (domain, email, userId) => {
   try {
@@ -178,12 +208,9 @@ const issueCertificate = async (domain, email, userId) => {
     // The record name is always _acme-challenge.{domain}
     const dnsRecordName = `_acme-challenge.${domain}`;
     
-    // Calculate the correct DNS TXT record value
-    // For DNS-01, the value must be the base64url-encoded SHA-256 digest of the key authorization
-    const keyAuthDigest = crypto.createHash('sha256').update(keyAuthorization).digest('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
+    // Get the challenge digest directly from the ACME client
+    // Let the ACME client handle the proper generation of the digest
+    const keyAuthDigest = await acme.crypto.createDnsRecordText(keyAuthorization);
     
     console.log(`DNS challenge record: ${dnsRecordName}`);
     console.log(`DNS challenge value: ${keyAuthDigest}`);
@@ -221,7 +248,7 @@ const issueCertificate = async (domain, email, userId) => {
     // Actively check for DNS propagation with retries
     const propagated = await checkDnsTxtPropagation(
       dnsRecordName,
-      keyAuthDigest,  // We're passing the raw value without quotes
+      keyAuthDigest,
       10,  // 10 attempts
       15000 // 15 seconds between attempts
     );
@@ -230,6 +257,17 @@ const issueCertificate = async (domain, email, userId) => {
       console.log('WARNING: DNS propagation check failed, but continuing with the process anyway...');
       // Additional delay before attempting verification
       console.log('Adding extra 30 seconds delay before challenge verification...');
+      await new Promise(resolve => setTimeout(resolve, 30000));
+    }
+    
+    // Verify with ACME's expected method before proceeding
+    console.log('Verifying DNS TXT record with ACME verification method...');
+    const acmeVerified = await verifyDnsTxtWithAcme(domain, keyAuthorization);
+    
+    if (!acmeVerified) {
+      console.log('WARNING: DNS record does not match ACME expected format. Challenge may fail.');
+      // Additional delay to allow for DNS propagation
+      console.log('Adding extra 30 seconds delay...');
       await new Promise(resolve => setTimeout(resolve, 30000));
     }
     
