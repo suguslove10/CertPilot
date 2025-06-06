@@ -215,6 +215,11 @@ const SubdomainManagement = () => {
     }
   };
   
+  const handleIssueCertificate = (subdomainId) => {
+    // Navigate to the certificates page with the subdomain ID
+    navigate(`/certificates?subdomainId=${subdomainId}`);
+  };
+  
   if (loading) {
     return (
       <div className="text-center my-5">
@@ -362,6 +367,14 @@ const SubdomainManagement = () => {
                           <td>{subdomain.recordType}</td>
                           <td>{subdomain.ttl}</td>
                           <td>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="me-2"
+                              onClick={() => handleIssueCertificate(subdomain._id)}
+                            >
+                              SSL Certificate
+                            </Button>
                             <Button
                               variant="danger"
                               size="sm"

@@ -3,12 +3,14 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const session = require('express-session');
+const path = require('path');
 
 // Routes import
 const awsCredentialsRoutes = require('./routes/awsCredentialsRoutes');
 const authRoutes = require('./routes/authRoutes');
 const subdomainRoutes = require('./routes/subdomainRoutes');
 const serverDetectionRoutes = require('./routes/serverDetectionRoutes');
+const certificateRoutes = require('./routes/certificateRoutes');
 
 // Load env variables
 dotenv.config();
@@ -32,11 +34,15 @@ app.use(session({
   cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 3600000 } // 1 hour
 }));
 
+// Serve ACME challenge files for Let's Encrypt
+app.use('/.well-known/acme-challenge', express.static(path.join(process.cwd(), '.well-known', 'acme-challenge')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/aws-credentials', awsCredentialsRoutes);
 app.use('/api/subdomains', subdomainRoutes);
 app.use('/api/server-detection', serverDetectionRoutes);
+app.use('/api/certificates', certificateRoutes);
 
 // Home route for testing
 app.get('/', (req, res) => {

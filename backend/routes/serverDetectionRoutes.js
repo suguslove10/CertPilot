@@ -89,8 +89,11 @@ const detectHostWebServers = async () => {
     if (platform.trim().toLowerCase() === 'darwin') {
       // macOS
       command = 'lsof -i -P -n | grep LISTEN | grep -E ":80|:443|:8080|:8443|:3000|:5000"';
+    } else if (fs.existsSync('/etc/alpine-release')) {
+      // Alpine Linux (BusyBox)
+      command = 'ps | grep -E "nginx|apache|httpd|node|tomcat"';
     } else {
-      // Linux
+      // Other Linux
       command = 'netstat -tulpn | grep -E ":80|:443|:8080|:8443|:3000|:5000"';
     }
     
@@ -112,12 +115,21 @@ const detectHostWebServers = async () => {
         processedPids.add(processInfo.pid);
         
         // Get more details about the process
-        const { stdout: processDetails } = await execAsync(`ps -p ${processInfo.pid} -o comm=`);
+        let processDetails;
+        
+        if (fs.existsSync('/etc/alpine-release')) {
+          // For Alpine, use simplified approach
+          processDetails = { stdout: processInfo.name };
+        } else {
+          // For other systems, get detailed process name
+          const { stdout } = await execAsync(`ps -p ${processInfo.pid} -o comm=`);
+          processDetails = { stdout };
+        }
         
         webServers.push({
-          type: determineProcessServerType(processDetails.trim(), processInfo.port),
-          name: processDetails.trim(),
-          ports: [processInfo.port],
+          type: determineProcessServerType(processDetails.stdout.trim(), processInfo.port),
+          name: processDetails.stdout.trim(),
+          ports: processInfo.port ? [processInfo.port] : [],
           location: 'Host Server',
           pid: processInfo.pid,
         });
@@ -195,6 +207,15 @@ const extractProcessInfo = (line, platform) => {
       
       if (pid && port) {
         return { pid, port };
+      }
+    } else if (fs.existsSync('/etc/alpine-release')) {
+      // Alpine Linux (BusyBox) ps format
+      const parts = line.trim().split(/\s+/);
+      const pid = parts[0];
+      const name = parts.slice(4).join(' ');
+      
+      if (pid && name) {
+        return { pid, name };
       }
     } else {
       // Linux netstat format

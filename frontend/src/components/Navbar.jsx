@@ -45,6 +45,11 @@ const Navbar = () => {
                   </Link>
                 </li>
                 <li className="nav-item">
+                  <Link className="nav-link" to="/certificates">
+                    SSL Certificates
+                  </Link>
+                </li>
+                <li className="nav-item">
                   <span className="nav-link text-light">
                     Welcome, {user?.name}
                   </span>

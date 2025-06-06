@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import AwsCredentials from './pages/AwsCredentials';
 import SubdomainManagement from './pages/SubdomainManagement';
+import CertificateManagement from './pages/CertificateManagement';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -40,6 +41,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <SubdomainManagement />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/certificates" 
+              element={
+                <PrivateRoute>
+                  <CertificateManagement />
                 </PrivateRoute>
               } 
             />
