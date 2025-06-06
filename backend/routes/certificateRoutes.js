@@ -377,10 +377,18 @@ const issueCertificate = async (domain, email, userId) => {
     console.log('Creating CSR...');
     let csr;
     try {
-      [csr] = await acme.forge.createCsr({
+      // Use a more reliable way to create the CSR
+      const [csrKey, csrData] = await acme.forge.createCsr({
         commonName: domain,
         altNames: [`www.${domain}`]
-      }, domainKeyPair);
+      });
+      
+      csr = csrData;
+      
+      // Save the CSR key - we'll need it later
+      const csrKeyPath = path.join(domainDir, 'csrkey.pem');
+      await fs.writeFile(csrKeyPath, acme.forge.getPemPrivateKey(csrKey));
+      
       console.log('CSR created successfully');
     } catch (csrError) {
       console.error('Error creating CSR:', csrError);
@@ -410,10 +418,18 @@ const issueCertificate = async (domain, email, userId) => {
     const certPath = path.join(domainDir, 'cert.pem');
     const keyPath = path.join(domainDir, 'privkey.pem');
     const chainPath = path.join(domainDir, 'chain.pem');
+    const csrKeyPath = path.join(domainDir, 'csrkey.pem');
     
     await Promise.all([
       fs.writeFile(certPath, cert),
-      fs.writeFile(keyPath, acme.forge.getPemPrivateKey(domainKeyPair)),
+      // Use the existing CSR key if available, otherwise fall back to domain key
+      fs.access(csrKeyPath).then(
+        () => console.log('Using existing CSR key'),
+        async () => {
+          console.log('CSR key not found, falling back to domain key');
+          await fs.writeFile(keyPath, acme.forge.getPemPrivateKey(domainKeyPair));
+        }
+      ),
       fs.writeFile(chainPath, cert) // For simplicity, using cert as chain
     ]);
     
