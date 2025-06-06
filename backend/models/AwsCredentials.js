@@ -1,27 +1,52 @@
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'certpilot-default-encryption-key-32byte'; // 32 bytes for AES-256
+// Set a more reasonable encryption key length (32 bytes = 256 bits for AES-256)
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 
+                      'certpilot-secure-encryption-key-32-chars';
+
 const IV_LENGTH = 16; // 16 bytes for AES-256
 
-// Simple encrypt function using AES-256-CBC
+// Simple encrypt function using AES-256-CBC with better error handling
 const encrypt = (text) => {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let encrypted = cipher.update(text);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
-  return iv.toString('hex') + ':' + encrypted.toString('hex');
+  try {
+    console.log('Encrypting secret key');
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const cipher = crypto.createCipheriv('aes-256-cbc', 
+                                       Buffer.from(ENCRYPTION_KEY.slice(0, 32)), 
+                                       iv);
+    let encrypted = cipher.update(text);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return iv.toString('hex') + ':' + encrypted.toString('hex');
+  } catch (error) {
+    console.error('Encryption error:', error);
+    throw new Error(`Encryption failed: ${error.message}`);
+  }
 };
 
-// Simple decrypt function
+// Simple decrypt function with better error handling
 const decrypt = (text) => {
-  const textParts = text.split(':');
-  const iv = Buffer.from(textParts.shift(), 'hex');
-  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let decrypted = decipher.update(encryptedText);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
-  return decrypted.toString();
+  try {
+    console.log('Decrypting secret key');
+    // Check if the text contains the expected format (iv:encrypted)
+    if (!text || !text.includes(':')) {
+      console.error('Invalid encrypted text format');
+      return text; // Return original if not in expected format
+    }
+
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift(), 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', 
+                                          Buffer.from(ENCRYPTION_KEY.slice(0, 32)), 
+                                          iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch (error) {
+    console.error('Decryption error:', error);
+    return null;
+  }
 };
 
 const AwsCredentialsSchema = new mongoose.Schema({
@@ -40,7 +65,7 @@ const AwsCredentialsSchema = new mongoose.Schema({
   },
   region: {
     type: String,
-    default: 'us-east-1'
+    default: 'ap-south-1'
   },
   createdAt: {
     type: Date,
@@ -58,9 +83,11 @@ AwsCredentialsSchema.pre('save', function(next) {
     try {
       // Don't re-encrypt if already encrypted
       if (!this.secretAccessKey.includes(':')) {
+        console.log('Encrypting new secret key');
         this.secretAccessKey = encrypt(this.secretAccessKey);
       }
     } catch (error) {
+      console.error('Error in pre-save encryption:', error);
       return next(error);
     }
   }

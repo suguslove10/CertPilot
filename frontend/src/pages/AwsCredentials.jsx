@@ -116,7 +116,7 @@ const AwsCredentials = () => {
       reset({
         accessKeyId: '',
         secretAccessKey: '',
-        region: 'us-east-1'
+        region: 'ap-south-1'
       });
       
       setMessage({

@@ -439,7 +439,7 @@ router.post('/verify-credentials', protect, async (req, res) => {
     req.session.awsCredentials = {
       accessKeyId,
       secretAccessKey,
-      region: region || 'us-east-1'
+      region: region || 'ap-south-1'
     };
     
     // Save the session
