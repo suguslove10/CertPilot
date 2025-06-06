@@ -217,251 +217,63 @@ const issueCertificate = async (domain, email, userId) => {
     const hostedZoneId = hostedZone.Id.split('/').pop();
     console.log(`Using hosted zone: ${hostedZoneId}`);
     
-    // Create account key and domain key pair
-    const accountKeyPair = await acme.forge.createPrivateKey();
-    const domainKeyPair = await acme.forge.createPrivateKey();
+    // Instead of using the acme-client library directly, use certbot with Route53 plugin
+    console.log('Using certbot for certificate issuance');
     
-    // Create ACME client
-    const client = new acme.Client({
-      directoryUrl: acme.directory.letsencrypt.production, // Use production for real certificates
-      accountKey: accountKeyPair
-    });
+    // Configure AWS credentials for certbot
+    const awsCredsDir = path.join(CERT_DIR, 'aws-credentials');
+    await fs.mkdir(awsCredsDir, { recursive: true });
     
-    // Create account
-    console.log(`Creating ACME account for ${email}`);
-    await client.createAccount({
-      termsOfServiceAgreed: true,
-      contact: [`mailto:${email}`]
-    });
+    const awsConfigPath = path.join(awsCredsDir, 'config');
+    const awsCredsPath = path.join(awsCredsDir, 'credentials');
     
-    // Create order
-    console.log(`Creating certificate order for ${domain}`);
-    const order = await client.createOrder({
-      identifiers: [{ type: 'dns', value: domain }]
-    });
-    
-    // Get authorizations from order
-    const authorizations = await client.getAuthorizations(order);
-    
-    // Get DNS challenge
-    const authz = authorizations[0];
-    const challenge = authz.challenges.find(c => c.type === 'dns-01');
-    
-    if (!challenge) {
-      throw new Error('DNS challenge not available');
-    }
-    
-    console.log('ACME Challenge details:');
-    console.log(JSON.stringify(challenge, null, 2));
-    
-    // For DNS-01 challenge, we need to create a TXT record with specific name and value
-    // The record name is always _acme-challenge.{domain}
-    const dnsRecordName = `_acme-challenge.${domain}`;
-    
-    // Let the ACME client calculate the correct DNS TXT record value
-    // This uses the built-in methods from acme-client which should produce the correct value
-    const keyAuthorization = await client.getChallengeKeyAuthorization(challenge);
-    console.log(`Raw key authorization: ${keyAuthorization}`);
-    
-    // Calculate the value exactly as specified in RFC 8555 for DNS-01 challenge
-    // The value is the base64url-encoded SHA-256 digest of the key authorization
-    const keyAuthDigest = crypto.createHash('sha256')
-      .update(keyAuthorization)
-      .digest();
-
-    // Encode to base64url as specified in RFC 8555 section 8.4
-    const base64url = keyAuthDigest.toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-    
-    // Log the calculations for debugging
-    console.log('DNS-01 challenge details:');
-    console.log(`- Raw key authorization: ${keyAuthorization}`);
-    console.log(`- SHA-256 hex: ${keyAuthDigest.toString('hex')}`);
-    console.log(`- Base64url value: ${base64url}`);
-    
-    console.log(`DNS challenge record: ${dnsRecordName}`);
-    console.log(`DNS challenge value: ${base64url}`);
-    
-    // Create TXT record in Route53
-    const dnsParams = {
-      HostedZoneId: hostedZoneId,
-      ChangeBatch: {
-        Changes: [
-          {
-            Action: 'UPSERT',
-            ResourceRecordSet: {
-              Name: `${dnsRecordName}.`,
-              Type: 'TXT',
-              TTL: 60,
-              ResourceRecords: [
-                {
-                  Value: `"${base64url}"`
-                }
-              ]
-            }
-          }
-        ]
-      }
-    };
-    
-    // Create DNS record
-    console.log('Creating DNS TXT record for ACME challenge');
-    await route53.changeResourceRecordSets(dnsParams).promise();
-    
-    // Wait for initial DNS propagation (2 minutes)
-    console.log('Waiting 2 minutes for initial DNS propagation...');
-    await new Promise(resolve => setTimeout(resolve, 120000)); // Increased to 2 minutes
-    
-    // Actively check for DNS propagation with retries
-    const propagated = await checkDnsTxtPropagation(
-      dnsRecordName,
-      base64url,
-      10,  // 10 attempts
-      15000 // 15 seconds between attempts
+    await fs.writeFile(awsConfigPath, `[default]\nregion = ${awsCredentials.region}\n`);
+    await fs.writeFile(awsCredsPath, 
+      `[default]\naws_access_key_id = ${awsCredentials.accessKeyId}\naws_secret_access_key = ${awsCredentials.getDecryptedSecretKey()}\n`
     );
     
-    if (!propagated) {
-      console.log('WARNING: DNS propagation check failed, but continuing with the process anyway...');
-      // Additional delay before attempting verification
-      console.log('Adding extra 30 seconds delay before challenge verification...');
-      await new Promise(resolve => setTimeout(resolve, 30000));
-    }
+    // Set chmod for AWS credentials
+    await fs.chmod(awsConfigPath, 0o600);
+    await fs.chmod(awsCredsPath, 0o600);
+    
+    // Set environment variables for certbot
+    process.env.AWS_CONFIG_FILE = awsConfigPath;
+    process.env.AWS_SHARED_CREDENTIALS_FILE = awsCredsPath;
+    
+    console.log('Running certbot command');
+    const certbotCmd = `certbot certonly --dns-route53 --non-interactive --agree-tos --email ${email} -d ${domain} -d www.${domain} --cert-name ${domain.replace(/\./g, '-')}`;
     
     try {
-      // Try DNS query using different DNS resolvers to ensure record is visible
-      const publicDns = ['8.8.8.8', '1.1.1.1', '9.9.9.9'];
-      for (const dnsServer of publicDns) {
-        try {
-          console.log(`Testing DNS resolution from ${dnsServer}...`);
-          const { stdout } = await execAsync(`dig @${dnsServer} TXT ${dnsRecordName}`);
-          console.log(`DNS resolution from ${dnsServer}:\n${stdout}`);
-        } catch (error) {
-          console.error(`Failed to resolve using ${dnsServer}: ${error.message}`);
-        }
-      }
-    } catch (error) {
-      console.error('Failed additional DNS verification:', error);
-    }
-    
-    // Skip local verification as it's causing issues
-    // Instead, directly notify the ACME provider that challenge is ready
-    console.log('Notifying ACME provider that challenge is ready...');
-    try {
-      await client.completeChallenge(challenge);
-      console.log('Challenge completion notified successfully');
-    } catch (completeError) {
-      console.error('Failed to complete challenge:', completeError);
-      throw new Error(`Failed to complete challenge: ${completeError.message}`);
-    }
-    
-    // Wait for validation with longer timeout
-    console.log('Waiting for ACME validation (up to 2 minutes)...');
-    try {
-      // Increase timeout for validation
-      const validationTimeout = 120000; // 2 minutes
-      await Promise.race([
-        client.waitForValidStatus(challenge),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Validation timed out after 2 minutes')), validationTimeout)
-        )
-      ]);
-      console.log('Challenge validation successful');
-    } catch (validationError) {
-      console.error('Challenge validation failed:', validationError);
-      throw new Error(`Challenge validation failed: ${validationError.message}`);
-    }
-    
-    // Complete order
-    console.log('Creating CSR...');
-    let csr;
-    try {
-      // Create a new CSR directly with the domain key pair
-      csr = await acme.forge.createCsr({
-        commonName: domain,
-        altNames: [`www.${domain}`]
-      }, domainKeyPair);
+      const { stdout, stderr } = await execAsync(certbotCmd);
+      console.log('Certbot output:');
+      console.log(stdout);
       
-      console.log('CSR created successfully');
-    } catch (csrError) {
-      console.error('Error creating CSR:', csrError);
-      throw new Error(`Failed to create CSR: ${csrError.message}`);
+      if (stderr) {
+        console.error('Certbot stderr:');
+        console.error(stderr);
+      }
+    } catch (certbotError) {
+      console.error('Certbot error:', certbotError);
+      throw new Error(`Certbot failed: ${certbotError.message}`);
     }
     
-    console.log('Finalizing order...');
-    try {
-      await client.finalizeOrder(order, csr);
-      console.log('Order finalized successfully');
-    } catch (finalizeError) {
-      console.error('Error finalizing order:', finalizeError);
-      throw new Error(`Failed to finalize order: ${finalizeError.message}`);
-    }
-    
-    console.log('Getting certificate...');
-    let cert;
-    try {
-      cert = await client.getCertificate(order);
-      console.log('Certificate obtained successfully');
-    } catch (certError) {
-      console.error('Error getting certificate:', certError);
-      throw new Error(`Failed to get certificate: ${certError.message}`);
-    }
-    
-    // Save files
+    // Copy certificates to our certificate directory
+    const letsEncryptDir = path.join('/etc/letsencrypt/live', domain.replace(/\./g, '-'));
     const certPath = path.join(domainDir, 'cert.pem');
     const keyPath = path.join(domainDir, 'privkey.pem');
     const chainPath = path.join(domainDir, 'chain.pem');
     
-    // Export private key directly in PEM format
-    const privateKeyPem = domainKeyPair.toString();
-    
     try {
-      await fs.writeFile(certPath, cert);
-      await fs.writeFile(keyPath, privateKeyPem);
-      await fs.writeFile(chainPath, cert); // For simplicity, using cert as chain
-      
-      console.log('Certificate files saved successfully:');
-      console.log(`- Certificate: ${certPath}`);
-      console.log(`- Private Key: ${keyPath}`);
-      console.log(`- Chain: ${chainPath}`);
-    } catch (fileError) {
-      console.error('Error saving certificate files:', fileError);
-      throw new Error(`Failed to save certificate files: ${fileError.message}`);
+      await fs.copyFile(path.join(letsEncryptDir, 'fullchain.pem'), certPath);
+      await fs.copyFile(path.join(letsEncryptDir, 'privkey.pem'), keyPath);
+      await fs.copyFile(path.join(letsEncryptDir, 'chain.pem'), chainPath);
+      console.log('Certificate files copied successfully');
+    } catch (copyError) {
+      console.error('Error copying certificate files:', copyError);
+      throw new Error(`Failed to copy certificate files: ${copyError.message}`);
     }
     
     console.log('Certificate issued successfully');
-    
-    // Cleanup DNS records regardless of outcome
-    console.log('Cleaning up DNS records...');
-    if (propagated) {
-      try {
-        const deleteParams = {
-          HostedZoneId: hostedZoneId,
-          ChangeBatch: {
-            Changes: [
-              {
-                Action: 'DELETE',
-                ResourceRecordSet: {
-                  Name: `${dnsRecordName}.`,
-                  Type: 'TXT',
-                  TTL: 60,
-                  ResourceRecords: [{ Value: `"${base64url}"` }]
-                }
-              }
-            ]
-          }
-        };
-        await route53.changeResourceRecordSets(deleteParams).promise();
-        console.log('DNS cleanup completed successfully');
-      } catch (cleanupError) {
-        console.error('Failed to clean up DNS records:', cleanupError);
-        // Don't throw here, we still want to continue and save the certificate if possible
-      }
-    } else {
-      console.log('Skipping DNS record cleanup since propagation was not confirmed');
-    }
-    
     return {
       success: true,
       certPath,

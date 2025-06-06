@@ -1,9 +1,16 @@
-FROM node:18-alpine
+FROM node:18
 
 WORKDIR /app
 
-# Install Docker CLI and tools for certificate management
-RUN apk add --no-cache docker-cli openssl bind-tools curl
+# Install Docker CLI and other tools
+RUN apt-get update && apt-get install -y \
+    docker.io \
+    openssl \
+    dnsutils \
+    curl \
+    certbot \
+    python3-certbot-dns-route53 \
+    awscli
 
 COPY package*.json ./
 
