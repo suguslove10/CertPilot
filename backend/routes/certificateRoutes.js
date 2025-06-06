@@ -132,25 +132,31 @@ const verifyDnsTxtWithAcme = async (domain, challenge, accountKeyPair) => {
 
 // Calculate the ACME thumbprint for an account key
 const calculateThumbprint = async (accountKey) => {
-  // Get the JWK (JSON Web Key) representation
-  const jwk = await acme.crypto.getJwk(accountKey);
-  
-  // Create the canonical JSON string as required by RFC7638
-  const canonical = JSON.stringify({
-    e: jwk.e,
-    kty: jwk.kty,
-    n: jwk.n
-  });
-  
-  // Calculate the thumbprint as per RFC7638
-  const thumbprint = crypto.createHash('sha256')
-    .update(canonical)
-    .digest('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-  
-  return thumbprint;
+  try {
+    // Get the JWK (JSON Web Key) representation
+    // Extract JWK from the account key
+    const jwk = accountKey.toJSON();
+    
+    // Create the canonical JSON string as required by RFC7638
+    const canonical = JSON.stringify({
+      e: jwk.e,
+      kty: jwk.kty,
+      n: jwk.n
+    });
+    
+    // Calculate the thumbprint as per RFC7638
+    const thumbprint = crypto.createHash('sha256')
+      .update(canonical)
+      .digest('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    return thumbprint;
+  } catch (error) {
+    console.error('Error calculating thumbprint:', error);
+    throw error;
+  }
 };
 
 // Calculate the DNS-01 challenge value directly as per RFC 8555
@@ -377,17 +383,11 @@ const issueCertificate = async (domain, email, userId) => {
     console.log('Creating CSR...');
     let csr;
     try {
-      // Use a more reliable way to create the CSR
-      const [csrKey, csrData] = await acme.forge.createCsr({
+      // Create a new CSR directly with the domain key pair
+      csr = await acme.forge.createCsr({
         commonName: domain,
         altNames: [`www.${domain}`]
-      });
-      
-      csr = csrData;
-      
-      // Save the CSR key - we'll need it later
-      const csrKeyPath = path.join(domainDir, 'csrkey.pem');
-      await fs.writeFile(csrKeyPath, acme.forge.getPemPrivateKey(csrKey));
+      }, domainKeyPair);
       
       console.log('CSR created successfully');
     } catch (csrError) {
@@ -418,18 +418,13 @@ const issueCertificate = async (domain, email, userId) => {
     const certPath = path.join(domainDir, 'cert.pem');
     const keyPath = path.join(domainDir, 'privkey.pem');
     const chainPath = path.join(domainDir, 'chain.pem');
-    const csrKeyPath = path.join(domainDir, 'csrkey.pem');
+    
+    // Export private key directly in PEM format
+    const privateKeyPem = domainKeyPair.toString();
     
     await Promise.all([
       fs.writeFile(certPath, cert),
-      // Use the existing CSR key if available, otherwise fall back to domain key
-      fs.access(csrKeyPath).then(
-        () => console.log('Using existing CSR key'),
-        async () => {
-          console.log('CSR key not found, falling back to domain key');
-          await fs.writeFile(keyPath, acme.forge.getPemPrivateKey(domainKeyPair));
-        }
-      ),
+      fs.writeFile(keyPath, privateKeyPem),
       fs.writeFile(chainPath, cert) // For simplicity, using cert as chain
     ]);
     
