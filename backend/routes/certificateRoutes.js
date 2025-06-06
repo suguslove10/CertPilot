@@ -137,7 +137,7 @@ const issueCertificate = async (domain, email, userId) => {
     
     // Create ACME client
     const client = new acme.Client({
-      directoryUrl: acme.directory.letsencrypt.staging, // Use staging for testing
+      directoryUrl: acme.directory.letsencrypt.production, // Use production for real certificates
       accountKey: accountKeyPair
     });
     
@@ -227,28 +227,67 @@ const issueCertificate = async (domain, email, userId) => {
     
     // Verify challenge
     console.log('Verifying challenge with Let\'s Encrypt...');
-    await client.verifyChallenge(authz, challenge);
+    try {
+      await client.verifyChallenge(authz, challenge);
+      console.log('Challenge verification completed successfully');
+    } catch (verifyError) {
+      console.error('Challenge verification failed:', verifyError);
+      console.error('Error details:', JSON.stringify(verifyError, null, 2));
+      throw new Error(`Challenge verification failed: ${verifyError.message}`);
+    }
     
     // Notify ACME provider that challenge is ready
     console.log('Notifying ACME provider that challenge is ready...');
-    await client.completeChallenge(challenge);
+    try {
+      await client.completeChallenge(challenge);
+      console.log('Challenge completion notified successfully');
+    } catch (completeError) {
+      console.error('Failed to complete challenge:', completeError);
+      throw new Error(`Failed to complete challenge: ${completeError.message}`);
+    }
     
     // Wait for validation (may take some time)
     console.log('Waiting for ACME validation...');
-    await client.waitForValidStatus(challenge);
+    try {
+      await client.waitForValidStatus(challenge);
+      console.log('Challenge validation successful');
+    } catch (validationError) {
+      console.error('Challenge validation failed:', validationError);
+      throw new Error(`Challenge validation failed: ${validationError.message}`);
+    }
     
     // Complete order
     console.log('Creating CSR...');
-    const [csr] = await acme.forge.createCsr({
-      commonName: domain,
-      altNames: [`www.${domain}`]
-    }, domainKeyPair);
+    let csr;
+    try {
+      [csr] = await acme.forge.createCsr({
+        commonName: domain,
+        altNames: [`www.${domain}`]
+      }, domainKeyPair);
+      console.log('CSR created successfully');
+    } catch (csrError) {
+      console.error('Error creating CSR:', csrError);
+      throw new Error(`Failed to create CSR: ${csrError.message}`);
+    }
     
     console.log('Finalizing order...');
-    await client.finalizeOrder(order, csr);
+    try {
+      await client.finalizeOrder(order, csr);
+      console.log('Order finalized successfully');
+    } catch (finalizeError) {
+      console.error('Error finalizing order:', finalizeError);
+      throw new Error(`Failed to finalize order: ${finalizeError.message}`);
+    }
     
     console.log('Getting certificate...');
-    const cert = await client.getCertificate(order);
+    let cert;
+    try {
+      cert = await client.getCertificate(order);
+      console.log('Certificate obtained successfully');
+    } catch (certError) {
+      console.error('Error getting certificate:', certError);
+      throw new Error(`Failed to get certificate: ${certError.message}`);
+    }
     
     // Save files
     const certPath = path.join(domainDir, 'cert.pem');
@@ -263,37 +302,32 @@ const issueCertificate = async (domain, email, userId) => {
     
     console.log('Certificate issued successfully');
     
-    // Clean up DNS record (in background to avoid delay)
+    // Cleanup DNS records regardless of outcome
+    console.log('Cleaning up DNS records...');
     if (propagated) {
-      setTimeout(async () => {
-        try {
-          const cleanupParams = {
-            HostedZoneId: hostedZoneId,
-            ChangeBatch: {
-              Changes: [
-                {
-                  Action: 'DELETE',
-                  ResourceRecordSet: {
-                    Name: `${dnsRecordName}.`,
-                    Type: 'TXT',
-                    TTL: 60,
-                    ResourceRecords: [
-                      {
-                        Value: `"${keyAuthDigest}"`
-                      }
-                    ]
-                  }
+      try {
+        const deleteParams = {
+          HostedZoneId: hostedZoneId,
+          ChangeBatch: {
+            Changes: [
+              {
+                Action: 'DELETE',
+                ResourceRecordSet: {
+                  Name: `${dnsRecordName}.`,
+                  Type: 'TXT',
+                  TTL: 60,
+                  ResourceRecords: [{ Value: `"${keyAuthDigest}"` }]
                 }
-              ]
-            }
-          };
-          
-          await route53.changeResourceRecordSets(cleanupParams).promise();
-          console.log('Cleaned up DNS challenge TXT record');
-        } catch (error) {
-          console.error('Error cleaning up DNS challenge record:', error);
-        }
-      }, 5000);
+              }
+            ]
+          }
+        };
+        await route53.changeResourceRecordSets(deleteParams).promise();
+        console.log('DNS cleanup completed successfully');
+      } catch (cleanupError) {
+        console.error('Failed to clean up DNS records:', cleanupError);
+        // Don't throw here, we still want to continue and save the certificate if possible
+      }
     } else {
       console.log('Skipping DNS record cleanup since propagation was not confirmed');
     }
