@@ -99,20 +99,15 @@ const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 1
 };
 
 // Function to check DNS TXT record with manual verification
-const verifyDnsTxtWithAcme = async (domain, keyAuthorization) => {
+const verifyDnsTxtWithAcme = async (domain, challenge, accountKeyPair) => {
   const dns = require('dns').promises;
   const recordName = `_acme-challenge.${domain}`;
   
-  // Manual calculation of the digest
-  const keyAuthDigest = crypto.createHash('sha256')
-    .update(keyAuthorization)
-    .digest('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  // Calculate the expected digest using the more accurate method
+  const expectedDigest = await calculateDns01ChallengeValue(challenge.token, accountKeyPair);
   
   console.log(`Performing manual verification for ${recordName}`);
-  console.log(`Expected digest: ${keyAuthDigest}`);
+  console.log(`Expected digest (direct calculation): ${expectedDigest}`);
   
   try {
     const txtRecords = await dns.resolveTxt(recordName);
@@ -122,7 +117,7 @@ const verifyDnsTxtWithAcme = async (domain, keyAuthorization) => {
     const flatRecords = [].concat(...txtRecords);
     console.log(`Flattened records: ${JSON.stringify(flatRecords)}`);
     
-    if (flatRecords.includes(keyAuthDigest)) {
+    if (flatRecords.includes(expectedDigest)) {
       console.log('✓ TXT record matches expected digest!');
       return true;
     } else {
@@ -133,6 +128,48 @@ const verifyDnsTxtWithAcme = async (domain, keyAuthorization) => {
     console.error(`Error resolving TXT record: ${error.message}`);
     return false;
   }
+};
+
+// Calculate the ACME thumbprint for an account key
+const calculateThumbprint = async (accountKey) => {
+  // Get the JWK (JSON Web Key) representation
+  const jwk = await acme.crypto.getJwk(accountKey);
+  
+  // Create the canonical JSON string as required by RFC7638
+  const canonical = JSON.stringify({
+    e: jwk.e,
+    kty: jwk.kty,
+    n: jwk.n
+  });
+  
+  // Calculate the thumbprint as per RFC7638
+  const thumbprint = crypto.createHash('sha256')
+    .update(canonical)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  
+  return thumbprint;
+};
+
+// Calculate the DNS-01 challenge value directly as per RFC 8555
+const calculateDns01ChallengeValue = async (token, accountKey) => {
+  // Calculate account key thumbprint
+  const thumbprint = await calculateThumbprint(accountKey);
+  
+  // Construct the key authorization string
+  const keyAuthorization = `${token}.${thumbprint}`;
+  
+  // For DNS-01, the value is the base64url-encoded SHA-256 digest of the key authorization
+  const value = crypto.createHash('sha256')
+    .update(keyAuthorization)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  
+  return value;
 };
 
 // Function to issue certificate using ACME client (Let's Encrypt)
@@ -208,21 +245,24 @@ const issueCertificate = async (domain, email, userId) => {
       throw new Error('DNS challenge not available');
     }
     
+    // Log detailed challenge information
+    console.log('ACME Challenge details:');
+    console.log(JSON.stringify(challenge, null, 2));
+    
     // Prepare DNS challenge
     const keyAuthorization = await client.getChallengeKeyAuthorization(challenge);
+    console.log(`Raw key authorization: ${keyAuthorization}`);
+    
+    // Calculate the challenge value both ways to verify
+    const directChallengeValue = await calculateDns01ChallengeValue(challenge.token, accountKeyPair);
+    console.log(`Direct challenge calculation: ${directChallengeValue}`);
     
     // For DNS-01 challenge, we need to create a TXT record with specific name and value
     // The record name is always _acme-challenge.{domain}
     const dnsRecordName = `_acme-challenge.${domain}`;
     
-    // Calculate the correct DNS TXT record value
-    // For DNS-01, the value must be the base64url-encoded SHA-256 digest of the key authorization
-    const keyAuthDigest = crypto.createHash('sha256')
-      .update(keyAuthorization)
-      .digest('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
+    // Use the directly calculated value to ensure accuracy
+    const keyAuthDigest = directChallengeValue;
     
     console.log(`DNS challenge record: ${dnsRecordName}`);
     console.log(`DNS challenge value: ${keyAuthDigest}`);
@@ -272,15 +312,37 @@ const issueCertificate = async (domain, email, userId) => {
       await new Promise(resolve => setTimeout(resolve, 30000));
     }
     
-    // Verify with ACME's expected method before proceeding
+    // Verify with manual verification before proceeding
     console.log('Verifying DNS TXT record with ACME verification method...');
-    const acmeVerified = await verifyDnsTxtWithAcme(domain, keyAuthorization);
+    const acmeVerified = await verifyDnsTxtWithAcme(domain, challenge, accountKeyPair);
     
     if (!acmeVerified) {
       console.log('WARNING: DNS record does not match ACME expected format. Challenge may fail.');
       // Additional delay to allow for DNS propagation
       console.log('Adding extra 30 seconds delay...');
       await new Promise(resolve => setTimeout(resolve, 30000));
+    }
+    
+    // Log the data that will be submitted to Let's Encrypt
+    console.log('Challenge data to be submitted:');
+    console.log(`- URL: ${challenge.url}`);
+    console.log(`- Token: ${challenge.token}`);
+    console.log(`- Status: ${challenge.status}`);
+    
+    try {
+      // Try DNS query using different DNS resolvers to ensure record is visible
+      const publicDns = ['8.8.8.8', '1.1.1.1', '9.9.9.9'];
+      for (const dnsServer of publicDns) {
+        try {
+          console.log(`Testing DNS resolution from ${dnsServer}...`);
+          const { stdout } = await execAsync(`dig @${dnsServer} TXT ${dnsRecordName}`);
+          console.log(`DNS resolution from ${dnsServer}:\n${stdout}`);
+        } catch (error) {
+          console.error(`Failed to resolve using ${dnsServer}: ${error.message}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed additional DNS verification:', error.message);
     }
     
     // Skip local verification as it's causing issues
@@ -294,10 +356,17 @@ const issueCertificate = async (domain, email, userId) => {
       throw new Error(`Failed to complete challenge: ${completeError.message}`);
     }
     
-    // Wait for validation (may take some time)
-    console.log('Waiting for ACME validation...');
+    // Wait for validation with longer timeout
+    console.log('Waiting for ACME validation (up to 2 minutes)...');
     try {
-      await client.waitForValidStatus(challenge);
+      // Increase timeout for validation
+      const validationTimeout = 120000; // 2 minutes
+      await Promise.race([
+        client.waitForValidStatus(challenge),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Validation timed out after 2 minutes')), validationTimeout)
+        )
+      ]);
       console.log('Challenge validation successful');
     } catch (validationError) {
       console.error('Challenge validation failed:', validationError);
