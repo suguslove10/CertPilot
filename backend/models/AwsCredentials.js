@@ -1,5 +1,28 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'certpilot-default-encryption-key-32byte'; // 32 bytes for AES-256
+const IV_LENGTH = 16; // 16 bytes for AES-256
+
+// Simple encrypt function using AES-256-CBC
+const encrypt = (text) => {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+};
+
+// Simple decrypt function
+const decrypt = (text) => {
+  const textParts = text.split(':');
+  const iv = Buffer.from(textParts.shift(), 'hex');
+  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+  let decrypted = decipher.update(encryptedText);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  return decrypted.toString();
+};
 
 const AwsCredentialsSchema = new mongoose.Schema({
   userId: {
@@ -30,11 +53,13 @@ const AwsCredentialsSchema = new mongoose.Schema({
 });
 
 // Encrypt the AWS secret key before saving
-AwsCredentialsSchema.pre('save', async function(next) {
+AwsCredentialsSchema.pre('save', function(next) {
   if (this.isModified('secretAccessKey')) {
     try {
-      const salt = await bcrypt.genSalt(10);
-      this.secretAccessKey = await bcrypt.hash(this.secretAccessKey, salt);
+      // Don't re-encrypt if already encrypted
+      if (!this.secretAccessKey.includes(':')) {
+        this.secretAccessKey = encrypt(this.secretAccessKey);
+      }
     } catch (error) {
       return next(error);
     }
@@ -42,5 +67,15 @@ AwsCredentialsSchema.pre('save', async function(next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Method to get the decrypted secretAccessKey
+AwsCredentialsSchema.methods.getDecryptedSecretKey = function() {
+  try {
+    return decrypt(this.secretAccessKey);
+  } catch (error) {
+    console.error('Error decrypting AWS secret key:', error);
+    return null;
+  }
+};
 
 module.exports = mongoose.model('AwsCredentials', AwsCredentialsSchema); 

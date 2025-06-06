@@ -73,7 +73,7 @@ const issueCertificate = async (domain, email, userId) => {
     // Configure Route53
     const route53 = new AWS.Route53({
       accessKeyId: awsCredentials.accessKeyId,
-      secretAccessKey: awsCredentials.secretAccessKey,
+      secretAccessKey: awsCredentials.getDecryptedSecretKey(),
       region: awsCredentials.region
     });
     

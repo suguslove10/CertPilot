@@ -49,9 +49,9 @@ router.post('/', protect, async (req, res) => {
     let credentials = await AwsCredentials.findOne({ userId: req.user._id });
 
     if (credentials) {
-      // Update existing credentials
+      // Update existing credentials - store raw value (will be encrypted in pre-save hook)
       credentials.accessKeyId = accessKeyId;
-      credentials.secretAccessKey = secretAccessKey;
+      credentials.secretAccessKey = secretAccessKey; // Raw value
       credentials.region = region || credentials.region;
       await credentials.save();
 
@@ -64,7 +64,7 @@ router.post('/', protect, async (req, res) => {
       credentials = await AwsCredentials.create({
         userId: req.user._id,
         accessKeyId,
-        secretAccessKey,
+        secretAccessKey, // Raw value will be encrypted in pre-save hook
         region: region || 'us-east-1'
       });
 
