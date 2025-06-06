@@ -13,16 +13,17 @@ const AwsCredentials = require('../models/AwsCredentials');
 const AWS = require('aws-sdk');
 
 // Directory for storing certificates
-const CERT_DIR = process.env.CERT_DIR || '/etc/certpilot/certificates';
+const CERT_DIR = process.env.CERT_DIR || path.join(process.cwd(), 'certificates');
 
 // Ensure certificate directory exists
 const ensureCertDir = async () => {
   try {
     await fs.mkdir(CERT_DIR, { recursive: true });
-    console.log(`Certificate directory created: ${CERT_DIR}`);
+    console.log(`Certificate directory created at ${CERT_DIR}`);
+    return true;
   } catch (error) {
     console.error(`Error creating certificate directory: ${error.message}`);
-    throw error;
+    return false;
   }
 };
 
