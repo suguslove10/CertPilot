@@ -38,7 +38,7 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend-node-modules:/app/node_modules
       - acme-challenge:/app/.well-known
     environment:
       - NODE_ENV=development
@@ -69,4 +69,6 @@ volumes:
   cert-data:
     driver: local
   acme-challenge:
+    driver: local
+  frontend-node-modules:
     driver: local 
