@@ -81,7 +81,8 @@ const detectDockerWebServers = async () => {
 const detectHostWebServers = async () => {
   try {
     // Different commands for different platforms
-    let command;
+    let command = 'netstat -tulpn | grep -E ":80|:443|:8080|:8443|:3000|:5000"';
+    let commandFallback = 'ps -aux | grep -E "nginx|apache|httpd|node|tomcat"';
     
     // Check platform
     const { stdout: platform } = await execAsync('uname');
@@ -92,51 +93,93 @@ const detectHostWebServers = async () => {
     } else if (fs.existsSync('/etc/alpine-release')) {
       // Alpine Linux (BusyBox)
       command = 'ps | grep -E "nginx|apache|httpd|node|tomcat"';
-    } else {
-      // Other Linux
-      command = 'netstat -tulpn | grep -E ":80|:443|:8080|:8443|:3000|:5000"';
     }
     
-    const { stdout } = await execAsync(command);
-    
-    if (!stdout.trim()) {
-      return [];
-    }
-    
-    const lines = stdout.trim().split('\n');
-    const webServers = [];
-    const processedPids = new Set();
-    
-    for (const line of lines) {
-      // Extract process info
-      const processInfo = extractProcessInfo(line, platform.trim().toLowerCase());
+    // Try the primary command first
+    try {
+      const { stdout } = await execAsync(command);
       
-      if (processInfo && !processedPids.has(processInfo.pid)) {
-        processedPids.add(processInfo.pid);
-        
-        // Get more details about the process
-        let processDetails;
-        
-        if (fs.existsSync('/etc/alpine-release')) {
-          // For Alpine, use simplified approach
-          processDetails = { stdout: processInfo.name };
-        } else {
-          // For other systems, get detailed process name
-          const { stdout } = await execAsync(`ps -p ${processInfo.pid} -o comm=`);
-          processDetails = { stdout };
-        }
-        
-        webServers.push({
-          type: determineProcessServerType(processDetails.stdout.trim(), processInfo.port),
-          name: processDetails.stdout.trim(),
-          ports: processInfo.port ? [processInfo.port] : [],
-          location: 'Host Server',
-          pid: processInfo.pid,
-        });
+      if (!stdout.trim()) {
+        return [];
       }
+      
+      const lines = stdout.trim().split('\n');
+      const webServers = [];
+      const processedPids = new Set();
+      
+      for (const line of lines) {
+        // Extract process info
+        const processInfo = extractProcessInfo(line, platform.trim().toLowerCase());
+        
+        if (processInfo && !processedPids.has(processInfo.pid)) {
+          processedPids.add(processInfo.pid);
+          
+          // Get more details about the process
+          let processDetails;
+          
+          if (fs.existsSync('/etc/alpine-release')) {
+            // For Alpine, use simplified approach
+            processDetails = { stdout: processInfo.name };
+          } else {
+            // For other systems, get detailed process name
+            try {
+              const { stdout } = await execAsync(`ps -p ${processInfo.pid} -o comm=`);
+              processDetails = { stdout };
+            } catch (err) {
+              // If ps command fails, use the name we already have
+              processDetails = { stdout: processInfo.name || 'unknown' };
+            }
+          }
+          
+          webServers.push({
+            type: determineProcessServerType(processDetails.stdout.trim(), processInfo.port),
+            name: processDetails.stdout.trim(),
+            ports: processInfo.port ? [processInfo.port] : [],
+            location: 'Host Server',
+            pid: processInfo.pid,
+          });
+        }
+      }
+      
+      return webServers;
+    } catch (primaryError) {
+      // If the primary command fails, try the fallback
+      console.log(`Primary command failed (${primaryError.message}), trying fallback command`);
+      const { stdout } = await execAsync(commandFallback);
+      
+      if (!stdout.trim()) {
+        return [];
+      }
+      
+      // Simple parsing from ps output
+      const lines = stdout.trim().split('\n');
+      const webServers = [];
+      const processedCommands = new Set();
+      
+      for (const line of lines) {
+        const parts = line.split(/\s+/).filter(Boolean);
+        if (parts.length < 11) continue;
+        
+        const command = parts.slice(10).join(' ');
+        
+        // Skip grep command itself
+        if (command.includes('grep')) continue;
+        
+        if (!processedCommands.has(command)) {
+          processedCommands.add(command);
+          
+          webServers.push({
+            type: determineProcessServerType(command, null),
+            name: command,
+            ports: [],
+            location: 'Host Server',
+            pid: parts[1],
+          });
+        }
+      }
+      
+      return webServers;
     }
-    
-    return webServers;
   } catch (error) {
     console.error('Error detecting host web servers:', error);
     return [];

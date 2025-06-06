@@ -305,7 +305,7 @@ const installCertToContainer = async (containerId, certPath, keyPath, chainPath)
     const containerInfo = psOutput.trim();
     
     if (containerInfo.toLowerCase().includes('nginx')) {
-      // Create nginx config file
+      // Create nginx config file with proper escaping
       const nginxConfig = `
 server {
     listen 443 ssl;
@@ -317,13 +317,15 @@ server {
     
     location / {
         proxy_pass http://localhost:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host \\$host;
+        proxy_set_header X-Real-IP \\$remote_addr;
     }
 }`;
       
-      // Create config file and reload nginx
-      await execAsync(`docker exec ${containerId} bash -c 'echo "${nginxConfig}" > /etc/nginx/conf.d/ssl.conf'`);
+      // Create config file and reload nginx - using a temporary file approach
+      await execAsync(`echo "${nginxConfig}" > /tmp/ssl_config_temp`);
+      await execAsync(`docker cp /tmp/ssl_config_temp ${containerId}:/etc/nginx/conf.d/ssl.conf`);
+      await execAsync(`rm /tmp/ssl_config_temp`);
       await execAsync(`docker exec ${containerId} nginx -s reload`);
     }
     

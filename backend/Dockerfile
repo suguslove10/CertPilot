@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     certbot \
     python3-certbot-dns-route53 \
+    net-tools \
     awscli
 
 COPY package*.json ./

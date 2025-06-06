@@ -425,6 +425,14 @@ router.post('/verify-credentials', protect, async (req, res) => {
   const { accessKeyId, secretAccessKey, region } = req.body;
 
   try {
+    // Ensure we have all required credentials
+    if (!accessKeyId || !secretAccessKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Access key ID and secret access key are required'
+      });
+    }
+
     // Verify the credentials with AWS
     const route53 = new AWS.Route53({
       accessKeyId,
@@ -435,19 +443,44 @@ router.post('/verify-credentials', protect, async (req, res) => {
     // Test the credentials by listing hosted zones
     await route53.listHostedZones().promise();
 
+    // Store the credentials in database (encrypted)
+    let awsCredentials = await AwsCredentials.findOne({ userId: req.user._id });
+    
+    if (awsCredentials) {
+      // Update existing credentials
+      awsCredentials.accessKeyId = accessKeyId;
+      awsCredentials.secretAccessKey = secretAccessKey; // Will be encrypted in pre-save hook
+      awsCredentials.region = region || 'us-east-1';
+    } else {
+      // Create new credentials
+      awsCredentials = new AwsCredentials({
+        userId: req.user._id,
+        accessKeyId,
+        secretAccessKey, // Will be encrypted in pre-save hook
+        region: region || 'us-east-1'
+      });
+    }
+    
+    await awsCredentials.save();
+
     // Store the credentials temporarily in session (only for this request)
     req.session.awsCredentials = {
       accessKeyId,
       secretAccessKey,
-      region: region || 'ap-south-1'
+      region: region || 'us-east-1'
     };
     
     // Save the session
-    req.session.save();
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
     res.json({ 
       success: true, 
-      message: 'AWS credentials verified successfully' 
+      message: 'AWS credentials verified and saved successfully' 
     });
   } catch (err) {
     console.error('Error verifying AWS credentials:', err);
