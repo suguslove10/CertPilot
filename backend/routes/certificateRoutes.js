@@ -69,15 +69,20 @@ const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 1
       console.log(`DNS TXT records found: ${JSON.stringify(records)}`);
       
       // Check if any of the records match our expected value
-      const flatRecords = records.flat();
-      if (flatRecords.some(record => record === expectedValue)) {
+      // Records come back as arrays of strings, and we need to join them if split
+      const matchFound = records.some(record => {
+        const joined = record.join(''); // Join any split records
+        return joined === expectedValue;
+      });
+      
+      if (matchFound) {
         console.log('✓ DNS TXT record has propagated successfully!');
         return true;
       }
       
       console.log(`DNS TXT record found but doesn't match expected value.`);
       console.log(`Expected: ${expectedValue}`);
-      console.log(`Found: ${JSON.stringify(flatRecords)}`);
+      console.log(`Found: ${JSON.stringify(records.flat())}`);
     } catch (error) {
       console.log(`DNS TXT record not found yet: ${error.message}`);
     }
@@ -196,7 +201,7 @@ const issueCertificate = async (domain, email, userId) => {
               TTL: 60,
               ResourceRecords: [
                 {
-                  Value: `"${keyAuthDigest}"`
+                  Value: keyAuthDigest
                 }
               ]
             }
@@ -209,20 +214,23 @@ const issueCertificate = async (domain, email, userId) => {
     console.log('Creating DNS TXT record for ACME challenge');
     await route53.changeResourceRecordSets(dnsParams).promise();
     
-    // Wait for initial DNS propagation (1 minute)
-    console.log('Waiting 1 minute for initial DNS propagation...');
-    await new Promise(resolve => setTimeout(resolve, 60000));
+    // Wait for initial DNS propagation (2 minutes)
+    console.log('Waiting 2 minutes for initial DNS propagation...');
+    await new Promise(resolve => setTimeout(resolve, 120000)); // Increased to 2 minutes
     
     // Actively check for DNS propagation with retries
     const propagated = await checkDnsTxtPropagation(
       dnsRecordName,
-      keyAuthDigest,
+      keyAuthDigest,  // We're passing the raw value without quotes
       10,  // 10 attempts
       15000 // 15 seconds between attempts
     );
     
     if (!propagated) {
       console.log('WARNING: DNS propagation check failed, but continuing with the process anyway...');
+      // Additional delay before attempting verification
+      console.log('Adding extra 30 seconds delay before challenge verification...');
+      await new Promise(resolve => setTimeout(resolve, 30000));
     }
     
     // Verify challenge
@@ -233,7 +241,18 @@ const issueCertificate = async (domain, email, userId) => {
     } catch (verifyError) {
       console.error('Challenge verification failed:', verifyError);
       console.error('Error details:', JSON.stringify(verifyError, null, 2));
-      throw new Error(`Challenge verification failed: ${verifyError.message}`);
+      
+      // Try one more time with a delay
+      console.log('Retrying challenge verification after 30 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 30000));
+      
+      try {
+        await client.verifyChallenge(authz, challenge);
+        console.log('Challenge verification completed successfully on retry');
+      } catch (retryError) {
+        console.error('Challenge verification failed on retry:', retryError);
+        throw new Error(`Challenge verification failed: ${retryError.message}`);
+      }
     }
     
     // Notify ACME provider that challenge is ready
@@ -316,7 +335,7 @@ const issueCertificate = async (domain, email, userId) => {
                   Name: `${dnsRecordName}.`,
                   Type: 'TXT',
                   TTL: 60,
-                  ResourceRecords: [{ Value: `"${keyAuthDigest}"` }]
+                  ResourceRecords: [{ Value: keyAuthDigest }]
                 }
               }
             ]

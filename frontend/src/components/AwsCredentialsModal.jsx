@@ -6,7 +6,7 @@ const AwsCredentialsModal = ({ show, onClose, onSuccess, region }) => {
   const [credentials, setCredentials] = useState({
     accessKeyId: '',
     secretAccessKey: '',
-    region: region || 'us-east-1',
+    region: region || 'ap-south-1',
   });
   
   const [loading, setLoading] = useState(false);
