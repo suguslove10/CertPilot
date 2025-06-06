@@ -8,10 +8,23 @@ CertPilot is a web application that helps you manage SSL certificates and AWS re
 - Secure AWS credentials management via web UI
 - Route53 DNS record management
 - SSL certificate setup and management
+- Modern, responsive UI with Tailwind CSS
+- Consistent component library for streamlined UX
+
+## UI/UX Features
+
+- Modern color scheme with comprehensive design system
+- Responsive design optimized for all device sizes
+- Interactive components with hover effects and animations
+- Accessible form elements with validation states
+- Consistent card layout system with various design options
+- Status indicators with visual cues for better UX
+- Optimized navigation with mobile responsiveness
+- Loading states and spinners for better feedback
 
 ## Technology Stack
 
-- **Frontend**: React, React Router, Axios, React Hook Form
+- **Frontend**: React, Tailwind CSS, React Router, Axios, React Hook Form
 - **Backend**: Node.js, Express, MongoDB
 - **Authentication**: JWT (JSON Web Tokens)
 - **AWS Integration**: AWS SDK for JavaScript
@@ -102,6 +115,19 @@ npm run dev
 ```
 
 7. Access the application at `http://localhost:3000`
+
+## UI Components
+
+CertPilot includes a comprehensive set of reusable UI components:
+
+- `Button` - Customizable button with multiple variants and states
+- `Card` - Flexible card component with various styling options
+- `Input` - Form input with validation states and icons
+- `StatusBadge` - Visual status indicators
+- `AlertBanner` - Notification banners for user feedback
+- `Modal` - Dialog component with animations
+- `Spinner` - Loading indicators
+- `Navbar` - Responsive navigation with mobile support
 
 ## AWS Permissions
 

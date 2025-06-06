@@ -6,15 +6,30 @@ Modern UI/UX improvements for CertPilot - a certificate management application.
 
 This version includes major UI/UX improvements:
 
-- Modern color scheme and design language
-- Responsive design for all devices
-- Improved navigation with active state indicators
-- Enhanced card components with hover effects
-- Status badges with icons for better visibility
-- Alert banners for notifications and warnings
-- Consistent typography with Inter font
-- Smooth animations and transitions
-- Better table styling for data display
+- Modern color scheme with Indigo-based design system
+- Comprehensive component library for consistent UI
+- Responsive design optimized for all devices
+- Improved navigation with mobile support and active state indicators
+- Enhanced card components with hover effects and animations
+- Status badges with customizable variants and animations
+- Alert banners with auto-close functionality
+- Consistent typography with Inter font family
+- Smooth animations and transitions with configurable timing
+- Better form controls with validation states
+- Loading spinners and state indicators for better feedback
+- Modal dialogs with backdrop blur and animations
+- Accessible components with proper ARIA attributes
+
+## Components
+
+- `Button` - Versatile button component with 11 variants, 5 sizes, and icon support
+- `Card` - Flexible card component with multiple styling options and hover effects
+- `Input` - Form input with validation states, icons, and help text
+- `StatusBadge` - Visual status indicators with customizable sizes and animations
+- `AlertBanner` - Notification banners with auto-close functionality
+- `Modal` - Dialog component with backdrop, animations, and focus management
+- `Spinner` - Loading indicators with various sizes and colors
+- `Navbar` - Responsive navigation with mobile drawer and active state tracking
 
 ## Setup Instructions
 
@@ -37,21 +52,29 @@ If you're updating from an older version:
 npm install -D tailwindcss postcss autoprefixer
 ```
 
-2. Run the build to generate the new UI:
+2. Initialize Tailwind CSS config:
+```bash
+npx tailwindcss init -p
+```
+
+3. Run the build to generate the new UI:
 ```bash
 npm run build
 ```
 
 ## Technologies Used
 
-- React
-- React Router
-- Tailwind CSS
+- React 18+
+- React Router 6+
+- Tailwind CSS 3.4+
 - Axios for API requests
 - React Toastify for notifications
 
 ## Project Structure
 
 - `src/components` - Reusable UI components
+  - `src/components/index.js` - Central export for all components
 - `src/pages` - Main application screens
-- `src/context` - React context providers 
+- `src/context` - React context providers
+- `src/tailwind.config.js` - Tailwind CSS configuration
+- `src/index.css` - Global styles and Tailwind imports 

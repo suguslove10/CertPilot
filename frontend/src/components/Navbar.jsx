@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -7,6 +7,26 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Handle scroll effect for navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -18,208 +38,182 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav 
+      className={`bg-gradient-to-r from-indigo-600 to-indigo-800 ${
+        scrolled ? 'shadow-md' : ''
+      } sticky top-0 z-50 transition-all duration-300 ease-in-out`}
+    >
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex justify-between items-center">
           {/* Logo and brand */}
           <div className="flex items-center">
-            <Link className="flex items-center" to="/">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <Link 
+              className="text-white font-bold text-xl flex items-center transition-transform hover:scale-105" 
+              to="/"
+              aria-label="CertPilot Home"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-7 w-7 mr-2" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+              >
+                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <span className="text-white font-bold text-xl">CertPilot</span>
+              <span>CertPilot</span>
             </Link>
           </div>
 
-          {/* Desktop nav */}
-          <div className="hidden md:flex md:items-center md:ml-6">
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-white hover:text-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-300 p-1 rounded-md transition-colors"
+              aria-expanded={isMenuOpen}
+              aria-label="Toggle navigation"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {isMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-1">
             {isAuthenticated ? (
               <>
-                <div className="flex space-x-4 items-center">
-                  <Link
-                    to="/dashboard"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/dashboard')
-                        ? 'bg-blue-900 text-white'
-                        : 'text-blue-100 hover:bg-blue-700'
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-
-                  <Link
-                    to="/aws-credentials"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/aws-credentials')
-                        ? 'bg-blue-900 text-white'
-                        : 'text-blue-100 hover:bg-blue-700'
-                    }`}
-                  >
-                    AWS Credentials
-                  </Link>
-
-                  <Link
-                    to="/subdomains"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/subdomains')
-                        ? 'bg-blue-900 text-white'
-                        : 'text-blue-100 hover:bg-blue-700'
-                    }`}
-                  >
-                    Subdomains
-                  </Link>
-
-                  <Link
-                    to="/certificates"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/certificates')
-                        ? 'bg-blue-900 text-white'
-                        : 'text-blue-100 hover:bg-blue-700'
-                    }`}
-                  >
-                    SSL Certificates
-                  </Link>
-                </div>
-
-                <div className="ml-6 flex items-center border-l border-blue-500 pl-6">
-                  <span className="text-blue-100 mr-4">{user?.name}</span>
-                  <button
-                    onClick={handleLogout}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-800 bg-blue-100 hover:bg-white focus:outline-none transition-colors"
-                  >
-                    Logout
-                  </button>
+                <NavLink to="/dashboard" isActive={isActive('/dashboard')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  Dashboard
+                </NavLink>
+                
+                <NavLink to="/aws-credentials" isActive={isActive('/aws-credentials')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  AWS Credentials
+                </NavLink>
+                
+                <NavLink to="/subdomains" isActive={isActive('/subdomains')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  Subdomains
+                </NavLink>
+                
+                <NavLink to="/certificates" isActive={isActive('/certificates')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  SSL Certificates
+                </NavLink>
+                
+                <div className="ml-6 relative flex items-center pl-6 border-l border-indigo-500">
+                  <div className="group relative">
+                    <button className="flex items-center text-white hover:text-indigo-200 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-indigo-800 flex items-center justify-center text-white font-medium mr-2">
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <span className="hidden sm:inline">{user?.name}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
+                      <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
+                        Signed in as <span className="font-semibold">{user?.email}</span>
+                      </div>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 transition-colors"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
-              <div className="flex items-center space-x-4">
-                <Link
-                  to="/login"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/login')
-                      ? 'bg-blue-900 text-white'
-                      : 'text-blue-100 hover:bg-blue-700'
-                  }`}
-                >
+              <>
+                <NavLink to="/login" isActive={isActive('/login')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
                   Login
-                </Link>
-                <Link
+                </NavLink>
+                
+                <Link 
+                  className="bg-white text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
                   to="/register"
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none transition-colors"
                 >
                   Register
                 </Link>
-              </div>
+              </>
             )}
           </div>
-
-          {/* Mobile menu button */}
-          <div className="flex md:hidden items-center">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-700 focus:outline-none"
-            >
-              <span className="sr-only">Open main menu</span>
-              {isMenuOpen ? (
-                <svg
-                  className="block h-6 w-6"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="block h-6 w-6"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              )}
-            </button>
-          </div>
         </div>
-      </div>
 
-      {/* Mobile menu, show/hide based on menu state */}
-      {isMenuOpen && (
-        <div className="md:hidden border-t border-blue-700">
-          <div className="px-2 pt-2 pb-3 space-y-1">
+        {/* Mobile Navigation */}
+        <div 
+          className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+            isMenuOpen ? 'max-h-96 opacity-100 mt-3' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="flex flex-col space-y-2 pt-3 border-t border-indigo-500">
             {isAuthenticated ? (
               <>
-                <Link
-                  to="/dashboard"
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    isActive('/dashboard')
-                      ? 'bg-blue-900 text-white'
-                      : 'text-blue-100 hover:bg-blue-700'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                <MobileNavLink to="/dashboard" isActive={isActive('/dashboard')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
                   Dashboard
-                </Link>
-                <Link
-                  to="/aws-credentials"
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    isActive('/aws-credentials')
-                      ? 'bg-blue-900 text-white'
-                      : 'text-blue-100 hover:bg-blue-700'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                </MobileNavLink>
+                
+                <MobileNavLink to="/aws-credentials" isActive={isActive('/aws-credentials')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
                   AWS Credentials
-                </Link>
-                <Link
-                  to="/subdomains"
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    isActive('/subdomains')
-                      ? 'bg-blue-900 text-white'
-                      : 'text-blue-100 hover:bg-blue-700'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                </MobileNavLink>
+                
+                <MobileNavLink to="/subdomains" isActive={isActive('/subdomains')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
                   Subdomains
-                </Link>
-                <Link
-                  to="/certificates"
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    isActive('/certificates')
-                      ? 'bg-blue-900 text-white'
-                      : 'text-blue-100 hover:bg-blue-700'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+                </MobileNavLink>
+                
+                <MobileNavLink to="/certificates" isActive={isActive('/certificates')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
                   SSL Certificates
-                </Link>
-
-                <div className="pt-4 pb-3 border-t border-blue-700">
-                  <div className="flex items-center justify-between px-3">
-                    <div className="text-blue-100">
-                      {user?.name}
+                </MobileNavLink>
+                
+                <div className="border-t border-indigo-500 pt-2 mt-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <div className="h-8 w-8 rounded-full bg-indigo-800 flex items-center justify-center text-white font-medium mr-2">
+                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <span className="text-white text-sm">{user?.name}</span>
                     </div>
                     <button
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        handleLogout();
-                      }}
-                      className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-800 bg-blue-100 hover:bg-white focus:outline-none transition-colors"
+                      onClick={handleLogout}
+                      className="bg-indigo-700 hover:bg-indigo-800 text-white text-sm px-3 py-2 rounded-md transition-colors"
+                      aria-label="Logout"
                     >
                       Logout
                     </button>
@@ -227,32 +221,51 @@ const Navbar = () => {
                 </div>
               </>
             ) : (
-              <>
-                <Link
-                  to="/login"
-                  className={`block px-3 py-2 rounded-md text-base font-medium ${
-                    isActive('/login')
-                      ? 'bg-blue-900 text-white'
-                      : 'text-blue-100 hover:bg-blue-700'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
+              <div className="flex flex-col space-y-2">
+                <MobileNavLink to="/login" isActive={isActive('/login')}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
                   Login
-                </Link>
-                <Link
+                </MobileNavLink>
+                
+                <Link 
+                  className="bg-white text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded-md text-sm font-medium text-center transition-colors"
                   to="/register"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-center bg-white text-blue-700 hover:bg-blue-50"
-                  onClick={() => setIsMenuOpen(false)}
                 >
                   Register
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 };
+
+// Desktop navigation link component
+const NavLink = ({ children, to, isActive }) => (
+  <Link 
+    className={`px-3 py-2 rounded-md text-sm font-medium flex items-center ${
+      isActive ? 'bg-indigo-700 text-white' : 'text-indigo-100 hover:bg-indigo-700 hover:text-white'
+    } transition-colors`}
+    to={to}
+  >
+    {children}
+  </Link>
+);
+
+// Mobile navigation link component
+const MobileNavLink = ({ children, to, isActive }) => (
+  <Link 
+    className={`px-3 py-2 rounded-md text-sm font-medium flex items-center ${
+      isActive ? 'bg-indigo-700 text-white' : 'text-indigo-100 hover:bg-indigo-700 hover:text-white'
+    } transition-colors`}
+    to={to}
+  >
+    {children}
+  </Link>
+);
 
 export default Navbar; 
