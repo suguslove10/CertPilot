@@ -9,11 +9,13 @@ services:
     restart: always
     ports:
       - "5001:5000"
+      - "80:5000"
     volumes:
       - ./backend:/app
       - /app/node_modules
       - /var/run/docker.sock:/var/run/docker.sock
       - cert-data:/etc/certpilot/certificates
+      - acme-challenge:/app/.well-known
     environment:
       - NODE_ENV=development
       - PORT=5000
@@ -38,6 +40,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - acme-challenge:/app/.well-known
     environment:
       - NODE_ENV=development
       - VITE_API_URL=/api
@@ -65,4 +68,6 @@ volumes:
   mongo-data:
     driver: local
   cert-data:
+    driver: local
+  acme-challenge:
     driver: local 

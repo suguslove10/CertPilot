@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 
 // Routes import
 const awsCredentialsRoutes = require('./routes/awsCredentialsRoutes');
@@ -34,7 +35,26 @@ app.use(session({
   cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 3600000 } // 1 hour
 }));
 
-// Serve ACME challenge files for Let's Encrypt
+// Serve ACME challenge files for Let's Encrypt with logging
+app.use('/.well-known/acme-challenge', (req, res, next) => {
+  const challengeDir = path.join(process.cwd(), '.well-known', 'acme-challenge');
+  const requestedFile = req.path;
+  const filePath = path.join(challengeDir, requestedFile);
+  
+  console.log(`ACME challenge request for: ${req.path}`);
+  console.log(`Looking for file: ${filePath}`);
+  
+  // List all files in the challenge directory
+  try {
+    const files = fs.readdirSync(challengeDir);
+    console.log(`Files in challenge directory: ${files.join(', ')}`);
+  } catch (err) {
+    console.log(`Error reading challenge directory: ${err.message}`);
+  }
+  
+  next();
+});
+
 app.use('/.well-known/acme-challenge', express.static(path.join(process.cwd(), '.well-known', 'acme-challenge')));
 
 // Routes

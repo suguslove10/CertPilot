@@ -9,6 +9,8 @@ const acme = require('acme-client');
 const Certificate = require('../models/Certificate');
 const Subdomain = require('../models/Subdomain');
 const { protect } = require('../middleware/authMiddleware');
+const AwsCredentials = require('../models/AwsCredentials');
+const AWS = require('aws-sdk');
 
 // Directory for storing certificates
 const CERT_DIR = process.env.CERT_DIR || '/etc/certpilot/certificates';
@@ -53,63 +55,139 @@ const checkDnsPropagation = async (domain, expectedIp) => {
 };
 
 // Function to issue certificate using ACME client (Let's Encrypt)
-const issueCertificate = async (domain, email) => {
+const issueCertificate = async (domain, email, userId) => {
   try {
+    console.log(`Starting certificate issuance for ${domain}`);
+    
     // Create domain directory
     const domainDir = path.join(CERT_DIR, domain);
     await fs.mkdir(domainDir, { recursive: true });
     
-    // Create account key and CSR
+    // Get user's AWS credentials for Route53 DNS challenge
+    const awsCredentials = await AwsCredentials.findOne({ userId });
+    if (!awsCredentials) {
+      throw new Error('AWS credentials not found for DNS challenge');
+    }
+    
+    // Configure Route53
+    const route53 = new AWS.Route53({
+      accessKeyId: awsCredentials.accessKeyId,
+      secretAccessKey: awsCredentials.secretAccessKey,
+      region: awsCredentials.region
+    });
+    
+    // Extract parent domain to get the hosted zone
+    const parentDomain = domain.split('.').slice(1).join('.');
+    console.log(`Finding hosted zone for parent domain: ${parentDomain}`);
+    
+    // Get hosted zone ID
+    const { HostedZones } = await route53.listHostedZones().promise();
+    const hostedZone = HostedZones.find(
+      zone => parentDomain.endsWith(zone.Name.slice(0, -1)) // Remove trailing dot
+    );
+    
+    if (!hostedZone) {
+      throw new Error(`No hosted zone found for domain: ${domain}`);
+    }
+    
+    const hostedZoneId = hostedZone.Id.split('/').pop();
+    console.log(`Using hosted zone: ${hostedZoneId}`);
+    
+    // Create account key and domain key pair
     const accountKeyPair = await acme.forge.createPrivateKey();
     const domainKeyPair = await acme.forge.createPrivateKey();
     
     // Create ACME client
     const client = new acme.Client({
-      directoryUrl: acme.directory.letsencrypt.production,
+      directoryUrl: acme.directory.letsencrypt.staging, // Use staging for testing
       accountKey: accountKeyPair
     });
     
     // Create account
+    console.log(`Creating ACME account for ${email}`);
     await client.createAccount({
       termsOfServiceAgreed: true,
       contact: [`mailto:${email}`]
     });
     
-    // Start HTTP challenge for domain verification
-    const [order, authz] = await Promise.all([
-      client.createOrder({ identifiers: [{ type: 'dns', value: domain }] }),
-      client.getAuthorizations()
-    ]);
+    // Create order
+    console.log(`Creating certificate order for ${domain}`);
+    const order = await client.createOrder({
+      identifiers: [{ type: 'dns', value: domain }]
+    });
     
-    // Get HTTP challenge
-    const challenge = authz[0].challenges.find(c => c.type === 'http-01');
+    // Get authorizations from order
+    const authorizations = await client.getAuthorizations(order);
+    
+    // Get DNS challenge
+    const authz = authorizations[0];
+    const challenge = authz.challenges.find(c => c.type === 'dns-01');
+    
     if (!challenge) {
-      throw new Error('HTTP challenge not available');
+      throw new Error('DNS challenge not available');
     }
     
-    // Create challenge response file
+    // Prepare DNS challenge
     const keyAuthorization = await client.getChallengeKeyAuthorization(challenge);
+    const dnsRecord = acme.crypto.getDNSRecordName(authz.identifier.value);
+    const dnsRecordValue = acme.crypto.getDNSRecordValue(keyAuthorization);
     
-    // Create challenge directory
-    const wellKnownDir = path.join(process.cwd(), '.well-known', 'acme-challenge');
-    await fs.mkdir(wellKnownDir, { recursive: true });
+    console.log(`DNS challenge record: _acme-challenge.${domain}`);
+    console.log(`DNS challenge value: ${dnsRecordValue}`);
     
-    // Write challenge file
-    const challengeFile = path.join(wellKnownDir, challenge.token);
-    await fs.writeFile(challengeFile, keyAuthorization);
+    // Create TXT record in Route53
+    const dnsParams = {
+      HostedZoneId: hostedZoneId,
+      ChangeBatch: {
+        Changes: [
+          {
+            Action: 'UPSERT',
+            ResourceRecordSet: {
+              Name: `_acme-challenge.${domain}.`,
+              Type: 'TXT',
+              TTL: 60,
+              ResourceRecords: [
+                {
+                  Value: `"${dnsRecordValue}"`
+                }
+              ]
+            }
+          }
+        ]
+      }
+    };
+    
+    // Create DNS record
+    console.log('Creating DNS TXT record for ACME challenge');
+    await route53.changeResourceRecordSets(dnsParams).promise();
+    
+    // Wait for DNS propagation (at least 30 seconds)
+    console.log('Waiting for DNS propagation (30 seconds)...');
+    await new Promise(resolve => setTimeout(resolve, 30000));
     
     // Verify challenge
-    await client.verifyChallenge(authz[0], challenge);
+    console.log('Verifying challenge...');
+    await client.verifyChallenge(authz, challenge);
+    
+    // Notify ACME provider that challenge is ready
+    console.log('Notifying ACME provider that challenge is ready...');
     await client.completeChallenge(challenge);
+    
+    // Wait for validation (may take some time)
+    console.log('Waiting for ACME validation...');
     await client.waitForValidStatus(challenge);
     
     // Complete order
+    console.log('Creating CSR...');
     const [csr] = await acme.forge.createCsr({
       commonName: domain,
       altNames: [`www.${domain}`]
     }, domainKeyPair);
     
+    console.log('Finalizing order...');
     await client.finalizeOrder(order, csr);
+    
+    console.log('Getting certificate...');
     const cert = await client.getCertificate(order);
     
     // Save files
@@ -123,8 +201,38 @@ const issueCertificate = async (domain, email) => {
       fs.writeFile(chainPath, cert) // For simplicity, using cert as chain
     ]);
     
-    // Clean up challenge files
-    await fs.unlink(challengeFile).catch(() => {});
+    console.log('Certificate issued successfully');
+    
+    // Clean up DNS record (in background to avoid delay)
+    setTimeout(async () => {
+      try {
+        const cleanupParams = {
+          HostedZoneId: hostedZoneId,
+          ChangeBatch: {
+            Changes: [
+              {
+                Action: 'DELETE',
+                ResourceRecordSet: {
+                  Name: `_acme-challenge.${domain}.`,
+                  Type: 'TXT',
+                  TTL: 60,
+                  ResourceRecords: [
+                    {
+                      Value: `"${dnsRecordValue}"`
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        };
+        
+        await route53.changeResourceRecordSets(cleanupParams).promise();
+        console.log('Cleaned up DNS challenge TXT record');
+      } catch (error) {
+        console.error('Error cleaning up DNS challenge record:', error);
+      }
+    }, 5000);
     
     return {
       success: true,
@@ -240,7 +348,7 @@ router.post('/', protect, async (req, res) => {
     });
     
     // Issue certificate (this can be moved to a background process)
-    const certResult = await issueCertificate(domain, req.user.email);
+    const certResult = await issueCertificate(domain, req.user.email, req.user._id);
     
     if (!certResult.success) {
       certificate.status = 'error';

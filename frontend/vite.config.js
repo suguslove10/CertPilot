@@ -1,9 +1,34 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
+import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'acme-challenge',
+      configureServer(server) {
+        // Serve acme-challenge files
+        server.middlewares.use((req, res, next) => {
+          if (req.url.startsWith('/.well-known/acme-challenge/')) {
+            const token = req.url.split('/').pop();
+            const challengePath = path.resolve(process.cwd(), '.well-known/acme-challenge', token);
+            
+            if (fs.existsSync(challengePath)) {
+              console.log(`Serving ACME challenge file: ${challengePath}`);
+              const content = fs.readFileSync(challengePath, 'utf-8');
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'text/plain');
+              return res.end(content);
+            }
+          }
+          next();
+        });
+      }
+    }
+  ],
   server: {
     host: '0.0.0.0',
     port: 3000,
