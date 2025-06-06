@@ -98,14 +98,21 @@ const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 1
   return false;
 };
 
-// Function to check DNS TXT record with ACME client's verification method
+// Function to check DNS TXT record with manual verification
 const verifyDnsTxtWithAcme = async (domain, keyAuthorization) => {
   const dns = require('dns').promises;
   const recordName = `_acme-challenge.${domain}`;
-  const expectedDigest = await acme.crypto.createDnsRecordText(keyAuthorization);
   
-  console.log(`Performing ACME-style verification for ${recordName}`);
-  console.log(`Expected digest: ${expectedDigest}`);
+  // Manual calculation of the digest
+  const keyAuthDigest = crypto.createHash('sha256')
+    .update(keyAuthorization)
+    .digest('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  
+  console.log(`Performing manual verification for ${recordName}`);
+  console.log(`Expected digest: ${keyAuthDigest}`);
   
   try {
     const txtRecords = await dns.resolveTxt(recordName);
@@ -115,7 +122,7 @@ const verifyDnsTxtWithAcme = async (domain, keyAuthorization) => {
     const flatRecords = [].concat(...txtRecords);
     console.log(`Flattened records: ${JSON.stringify(flatRecords)}`);
     
-    if (flatRecords.includes(expectedDigest)) {
+    if (flatRecords.includes(keyAuthDigest)) {
       console.log('✓ TXT record matches expected digest!');
       return true;
     } else {
@@ -208,9 +215,14 @@ const issueCertificate = async (domain, email, userId) => {
     // The record name is always _acme-challenge.{domain}
     const dnsRecordName = `_acme-challenge.${domain}`;
     
-    // Get the challenge digest directly from the ACME client
-    // Let the ACME client handle the proper generation of the digest
-    const keyAuthDigest = await acme.crypto.createDnsRecordText(keyAuthorization);
+    // Calculate the correct DNS TXT record value
+    // For DNS-01, the value must be the base64url-encoded SHA-256 digest of the key authorization
+    const keyAuthDigest = crypto.createHash('sha256')
+      .update(keyAuthorization)
+      .digest('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
     
     console.log(`DNS challenge record: ${dnsRecordName}`);
     console.log(`DNS challenge value: ${keyAuthDigest}`);
