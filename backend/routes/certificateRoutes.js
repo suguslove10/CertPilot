@@ -292,6 +292,14 @@ const issueCertificate = async (domain, email, userId) => {
 // Function to install certificate to a Docker container
 const installCertToContainer = async (containerId, certPath, keyPath, chainPath) => {
   try {
+    // Get container information to check for port 443 exposure
+    const { stdout: inspectOutput } = await execAsync(`docker inspect ${containerId}`);
+    const containerInfo = JSON.parse(inspectOutput)[0];
+    
+    // Check if port 443 is exposed
+    const ports = containerInfo.NetworkSettings?.Ports || {};
+    const has443Exposed = ports['443/tcp'] !== undefined;
+    
     // Create temp directory in container
     await execAsync(`docker exec ${containerId} mkdir -p /tmp/certs`);
     
@@ -302,9 +310,9 @@ const installCertToContainer = async (containerId, certPath, keyPath, chainPath)
     
     // For NGINX containers, update config and reload
     const { stdout: psOutput } = await execAsync(`docker ps -a --format "{{.ID}}:{{.Image}}" --filter "id=${containerId}"`);
-    const containerInfo = psOutput.trim();
+    const containerImageInfo = psOutput.trim();
     
-    if (containerInfo.toLowerCase().includes('nginx')) {
+    if (containerImageInfo.toLowerCase().includes('nginx')) {
       // Create nginx config file with proper escaping
       const nginxConfig = `
 server {
@@ -326,7 +334,35 @@ server {
       await execAsync(`echo "${nginxConfig}" > /tmp/ssl_config_temp`);
       await execAsync(`docker cp /tmp/ssl_config_temp ${containerId}:/etc/nginx/conf.d/ssl.conf`);
       await execAsync(`rm /tmp/ssl_config_temp`);
-      await execAsync(`docker exec ${containerId} nginx -s reload`);
+      
+      try {
+        // Attempt to reload nginx
+        await execAsync(`docker exec ${containerId} nginx -s reload`);
+      } catch (reloadError) {
+        console.error('Error reloading nginx:', reloadError.message);
+        
+        // If port 443 is not exposed, provide helpful error message
+        if (!has443Exposed) {
+          return {
+            success: false,
+            error: "Certificate installed but HTTPS won't work: port 443 is not exposed. Please recreate the container with: docker run -p 80:80 -p 443:443 nginx",
+            certificateInstalled: true,
+            portMissing: true
+          };
+        }
+        
+        throw reloadError;
+      }
+    }
+    
+    // Check and provide warning if needed
+    if (!has443Exposed) {
+      return {
+        success: true,
+        message: 'Certificate installed but HTTPS may not work: port 443 is not exposed',
+        warning: 'Container has no exposed port 443 (HTTPS). Consider recreating with: docker run -p 80:80 -p 443:443 <image>',
+        portMissing: true
+      };
     }
     
     return {
@@ -406,6 +442,7 @@ router.post('/', protect, async (req, res) => {
       
       // Get hosted zone for the parent domain
       const parentDomain = domain.split('.').slice(1).join('.');
+      console.log('Finding hosted zone for parent domain:', parentDomain);
       const { HostedZones } = await route53.listHostedZones().promise();
       const hostedZone = HostedZones.find(
         zone => parentDomain.endsWith(zone.Name.slice(0, -1))
@@ -416,6 +453,7 @@ router.post('/', protect, async (req, res) => {
       }
       
       const hostedZoneId = hostedZone.Id.split('/').pop();
+      console.log('Using hosted zone:', hostedZoneId);
       
       // Create a wildcard TXT record for all challenges
       // This is for testing purposes only - will handle any ACME challenge
@@ -452,6 +490,7 @@ router.post('/', protect, async (req, res) => {
       setTimeout(async () => {
         try {
           // Issue certificate
+          console.log('Using certbot for certificate issuance');
           const certResult = await issueCertificate(domain, req.user.email, req.user._id);
           
           if (!certResult.success) {
@@ -472,49 +511,94 @@ router.post('/', protect, async (req, res) => {
           await certificate.save();
           
           // If container IDs provided, install certificate
+          let installWarnings = [];
+          
           if (containerIds && containerIds.length) {
             for (const containerId of containerIds) {
               try {
-                await installCertToContainer(
+                const installResult = await installCertToContainer(
                   containerId, 
                   certResult.certPath, 
                   certResult.keyPath, 
                   certResult.chainPath
                 );
                 
-                // Update certificate status to installed
-                certificate.status = 'installed';
-                certificate.installDate = Date.now();
-                await certificate.save();
+                if (installResult.success) {
+                  // Update certificate status to installed
+                  certificate.status = 'installed';
+                  certificate.installDate = Date.now();
+                  
+                  // Store any warnings
+                  if (installResult.warning) {
+                    installWarnings.push({
+                      containerId,
+                      warning: installResult.warning,
+                      portMissing: installResult.portMissing
+                    });
+                    certificate.installWarnings = installWarnings;
+                  }
+                  
+                  await certificate.save();
+                } else {
+                  console.error(`Error installing certificate to container ${containerId}:`, installResult.error);
+                  
+                  // If the certificate was installed but there's a port warning
+                  if (installResult.certificateInstalled && installResult.portMissing) {
+                    certificate.status = 'installed';
+                    certificate.installDate = Date.now();
+                    
+                    installWarnings.push({
+                      containerId,
+                      warning: installResult.error,
+                      portMissing: true
+                    });
+                    certificate.installWarnings = installWarnings;
+                    await certificate.save();
+                  }
+                }
               } catch (installError) {
                 console.error(`Error installing certificate to container ${containerId}:`, installError);
               }
             }
           }
           
-          console.log(`Certificate for ${domain} issued and installed successfully`);
+          // Log success message with any warnings
+          if (installWarnings.length > 0) {
+            const warningMessages = installWarnings.map(w => w.warning).join('; ');
+            console.log(`Certificate for ${domain} issued and installed with warnings: ${warningMessages}`);
+          } else {
+            console.log(`Certificate for ${domain} issued and installed successfully`);
+          }
         } catch (error) {
           console.error(`Background certificate issuance error: ${error.message}`);
           certificate.status = 'error';
           certificate.errorMessage = error.message;
           await certificate.save();
         }
-      }, 0);
+      }, 100);
       
     } catch (error) {
+      console.error(`Certificate issuance error: ${error.message}`);
+      
+      // Update certificate status to error
       certificate.status = 'error';
       certificate.errorMessage = error.message;
       await certificate.save();
       
-      console.error(`Error starting certificate issuance: ${error.message}`);
-      return res.status(500).json({
-        message: 'Failed to start certificate issuance',
-        error: error.message
-      });
+      // If we've already sent a response, we can't send another
+      if (!res.headersSent) {
+        res.status(500).json({
+          message: 'Failed to issue certificate',
+          error: error.message
+        });
+      }
     }
   } catch (error) {
-    console.error(`Certificate request error: ${error.message}`);
-    return res.status(500).json({ message: error.message });
+    console.error(`Certificate route error: ${error.message}`);
+    res.status(500).json({ 
+      message: 'Failed to process certificate request', 
+      error: error.message
+    });
   }
 });
 

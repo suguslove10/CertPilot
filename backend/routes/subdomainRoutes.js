@@ -376,7 +376,11 @@ router.get('/zones/list', protect, async (req, res) => {
     const dbCredentials = await getUserAwsCredentials(req.user._id);
     
     // Configure AWS Route53 with the raw secret key if available
-    const route53 = await configureRoute53(dbCredentials, sessionCredentials?.secretAccessKey);
+    const route53 = new AWS.Route53({
+      accessKeyId: sessionCredentials?.accessKeyId || dbCredentials.accessKeyId,
+      secretAccessKey: sessionCredentials?.secretAccessKey || dbCredentials.getDecryptedSecretKey(),
+      region: sessionCredentials?.region || dbCredentials.region || 'us-east-1'
+    });
     
     try {
       // Get hosted zones

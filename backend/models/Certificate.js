@@ -28,6 +28,10 @@ const CertificateSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  installDate: {
+    type: Date,
+    default: null
+  },
   certPath: {
     type: String,
     default: null
@@ -43,6 +47,10 @@ const CertificateSchema = new mongoose.Schema({
   errorMessage: {
     type: String,
     default: null
+  },
+  installWarnings: {
+    type: Array,
+    default: []
   },
   renewalStatus: {
     type: String,
