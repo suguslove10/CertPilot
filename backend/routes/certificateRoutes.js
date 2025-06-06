@@ -56,7 +56,7 @@ const checkDnsPropagation = async (domain, expectedIp) => {
   }
 };
 
-// Check if DNS TXT record has propagated
+// Function to check DNS TXT record with retries
 const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 10, delayBetweenAttempts = 10000) => {
   const dns = require('dns').promises;
   console.log(`Checking DNS TXT record propagation for ${recordName}...`);
@@ -251,24 +251,42 @@ const issueCertificate = async (domain, email, userId) => {
       throw new Error('DNS challenge not available');
     }
     
-    // Log detailed challenge information
     console.log('ACME Challenge details:');
     console.log(JSON.stringify(challenge, null, 2));
-    
-    // Prepare DNS challenge
-    const keyAuthorization = await client.getChallengeKeyAuthorization(challenge);
-    console.log(`Raw key authorization: ${keyAuthorization}`);
-    
-    // Calculate the challenge value both ways to verify
-    const directChallengeValue = await calculateDns01ChallengeValue(challenge.token, accountKeyPair);
-    console.log(`Direct challenge calculation: ${directChallengeValue}`);
     
     // For DNS-01 challenge, we need to create a TXT record with specific name and value
     // The record name is always _acme-challenge.{domain}
     const dnsRecordName = `_acme-challenge.${domain}`;
     
-    // Use the directly calculated value to ensure accuracy
-    const keyAuthDigest = directChallengeValue;
+    // Let the ACME client calculate the correct DNS TXT record value
+    // This uses the built-in methods from acme-client which should produce the correct value
+    const keyAuthorization = await client.getChallengeKeyAuthorization(challenge);
+    console.log(`Raw key authorization: ${keyAuthorization}`);
+    
+    // Get authorization digest using the ACME client's helper function or calculate manually
+    let keyAuthDigest;
+    try {
+      if (typeof acme.crypto.dns01 === 'function') {
+        keyAuthDigest = acme.crypto.dns01(keyAuthorization);
+        console.log('Using built-in acme.crypto.dns01 function');
+      } else {
+        console.log('acme.crypto.dns01 function not available, calculating manually');
+        keyAuthDigest = crypto.createHash('sha256')
+          .update(keyAuthorization)
+          .digest('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=/g, '');
+      }
+    } catch (error) {
+      console.error('Error calculating DNS digest, falling back to manual calculation:', error);
+      keyAuthDigest = crypto.createHash('sha256')
+        .update(keyAuthorization)
+        .digest('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    }
     
     console.log(`DNS challenge record: ${dnsRecordName}`);
     console.log(`DNS challenge value: ${keyAuthDigest}`);
@@ -318,23 +336,6 @@ const issueCertificate = async (domain, email, userId) => {
       await new Promise(resolve => setTimeout(resolve, 30000));
     }
     
-    // Verify with manual verification before proceeding
-    console.log('Verifying DNS TXT record with ACME verification method...');
-    const acmeVerified = await verifyDnsTxtWithAcme(domain, challenge, accountKeyPair);
-    
-    if (!acmeVerified) {
-      console.log('WARNING: DNS record does not match ACME expected format. Challenge may fail.');
-      // Additional delay to allow for DNS propagation
-      console.log('Adding extra 30 seconds delay...');
-      await new Promise(resolve => setTimeout(resolve, 30000));
-    }
-    
-    // Log the data that will be submitted to Let's Encrypt
-    console.log('Challenge data to be submitted:');
-    console.log(`- URL: ${challenge.url}`);
-    console.log(`- Token: ${challenge.token}`);
-    console.log(`- Status: ${challenge.status}`);
-    
     try {
       // Try DNS query using different DNS resolvers to ensure record is visible
       const publicDns = ['8.8.8.8', '1.1.1.1', '9.9.9.9'];
@@ -348,7 +349,7 @@ const issueCertificate = async (domain, email, userId) => {
         }
       }
     } catch (error) {
-      console.error('Failed additional DNS verification:', error.message);
+      console.error('Failed additional DNS verification:', error);
     }
     
     // Skip local verification as it's causing issues
