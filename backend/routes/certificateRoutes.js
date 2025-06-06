@@ -68,10 +68,11 @@ const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 1
       const records = await dns.resolveTxt(recordName);
       console.log(`DNS TXT records found: ${JSON.stringify(records)}`);
       
-      // Check if any of the records match our expected value
-      // Records come back as arrays of strings, and we need to join them if split
+      // DNS resolveTxt returns nested arrays of strings
+      // We need to check each record (which might be an array of strings)
       const matchFound = records.some(record => {
-        const joined = record.join(''); // Join any split records
+        // Each record is an array of strings (often just one string)
+        const joined = record.join('');
         return joined === expectedValue;
       });
       
@@ -82,7 +83,7 @@ const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 1
       
       console.log(`DNS TXT record found but doesn't match expected value.`);
       console.log(`Expected: ${expectedValue}`);
-      console.log(`Found: ${JSON.stringify(records.flat())}`);
+      console.log(`Found: ${JSON.stringify(records)}`);
     } catch (error) {
       console.log(`DNS TXT record not found yet: ${error.message}`);
     }
@@ -175,11 +176,10 @@ const issueCertificate = async (domain, email, userId) => {
     
     // For DNS-01 challenge, we need to create a TXT record with specific name and value
     // The record name is always _acme-challenge.{domain}
-    // The value is a digest of the key authorization
     const dnsRecordName = `_acme-challenge.${domain}`;
     
     // Calculate the correct DNS TXT record value
-    // This is SHA-256 digest of the key authorization, base64url-encoded
+    // For DNS-01, the value must be the base64url-encoded SHA-256 digest of the key authorization
     const keyAuthDigest = crypto.createHash('sha256').update(keyAuthorization).digest('base64')
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
@@ -233,29 +233,8 @@ const issueCertificate = async (domain, email, userId) => {
       await new Promise(resolve => setTimeout(resolve, 30000));
     }
     
-    // Verify challenge
-    console.log('Verifying challenge with Let\'s Encrypt...');
-    try {
-      await client.verifyChallenge(authz, challenge);
-      console.log('Challenge verification completed successfully');
-    } catch (verifyError) {
-      console.error('Challenge verification failed:', verifyError);
-      console.error('Error details:', JSON.stringify(verifyError, null, 2));
-      
-      // Try one more time with a delay
-      console.log('Retrying challenge verification after 30 seconds...');
-      await new Promise(resolve => setTimeout(resolve, 30000));
-      
-      try {
-        await client.verifyChallenge(authz, challenge);
-        console.log('Challenge verification completed successfully on retry');
-      } catch (retryError) {
-        console.error('Challenge verification failed on retry:', retryError);
-        throw new Error(`Challenge verification failed: ${retryError.message}`);
-      }
-    }
-    
-    // Notify ACME provider that challenge is ready
+    // Skip local verification as it's causing issues
+    // Instead, directly notify the ACME provider that challenge is ready
     console.log('Notifying ACME provider that challenge is ready...');
     try {
       await client.completeChallenge(challenge);
