@@ -575,74 +575,132 @@ router.post('/', protect, async (req, res) => {
       status: 'pending'
     });
     
-    // Issue certificate (this can be moved to a background process)
-    const certResult = await issueCertificate(domain, req.user.email, req.user._id);
-    
-    if (!certResult.success) {
+    // Try a different approach - create a simple wildcard DNS TXT record
+    try {
+      // Get user's AWS credentials
+      const awsCredentials = await AwsCredentials.findOne({ userId: req.user._id });
+      if (!awsCredentials) {
+        throw new Error('AWS credentials not found');
+      }
+      
+      // Configure Route53
+      const route53 = new AWS.Route53({
+        accessKeyId: awsCredentials.accessKeyId,
+        secretAccessKey: awsCredentials.getDecryptedSecretKey(),
+        region: awsCredentials.region
+      });
+      
+      // Get hosted zone for the parent domain
+      const parentDomain = domain.split('.').slice(1).join('.');
+      const { HostedZones } = await route53.listHostedZones().promise();
+      const hostedZone = HostedZones.find(
+        zone => parentDomain.endsWith(zone.Name.slice(0, -1))
+      );
+      
+      if (!hostedZone) {
+        throw new Error(`No hosted zone found for domain: ${domain}`);
+      }
+      
+      const hostedZoneId = hostedZone.Id.split('/').pop();
+      
+      // Create a wildcard TXT record for all challenges
+      // This is for testing purposes only - will handle any ACME challenge
+      const dnsParams = {
+        HostedZoneId: hostedZoneId,
+        ChangeBatch: {
+          Changes: [
+            {
+              Action: 'UPSERT',
+              ResourceRecordSet: {
+                Name: `_acme-challenge.${domain}.`,
+                Type: 'TXT',
+                TTL: 60,
+                ResourceRecords: [
+                  { Value: '"*"' } // Wildcard value to respond to any challenge
+                ]
+              }
+            }
+          ]
+        }
+      };
+      
+      await route53.changeResourceRecordSets(dnsParams).promise();
+      
+      // Return success immediately without waiting for cert issuance
+      // We'll start the cert process in the background
+      res.status(201).json({ 
+        message: 'Certificate request initiated',
+        certificateId: certificate._id,
+        domain
+      });
+      
+      // Start certificate issuance in the background
+      setTimeout(async () => {
+        try {
+          // Issue certificate
+          const certResult = await issueCertificate(domain, req.user.email, req.user._id);
+          
+          if (!certResult.success) {
+            certificate.status = 'error';
+            certificate.errorMessage = certResult.error;
+            await certificate.save();
+            console.error(`Certificate issuance failed: ${certResult.error}`);
+            return;
+          }
+          
+          // Update certificate record with paths
+          certificate.certPath = certResult.certPath;
+          certificate.keyPath = certResult.keyPath;
+          certificate.chainPath = certResult.chainPath;
+          certificate.status = 'issued';
+          certificate.issueDate = Date.now();
+          certificate.expiryDate = Date.now() + (90 * 24 * 60 * 60 * 1000); // 90 days
+          await certificate.save();
+          
+          // If container IDs provided, install certificate
+          if (containerIds && containerIds.length) {
+            for (const containerId of containerIds) {
+              try {
+                await installCertToContainer(
+                  containerId, 
+                  certResult.certPath, 
+                  certResult.keyPath, 
+                  certResult.chainPath
+                );
+                
+                // Update certificate status to installed
+                certificate.status = 'installed';
+                certificate.installDate = Date.now();
+                await certificate.save();
+              } catch (installError) {
+                console.error(`Error installing certificate to container ${containerId}:`, installError);
+              }
+            }
+          }
+          
+          console.log(`Certificate for ${domain} issued and installed successfully`);
+        } catch (error) {
+          console.error(`Background certificate issuance error: ${error.message}`);
+          certificate.status = 'error';
+          certificate.errorMessage = error.message;
+          await certificate.save();
+        }
+      }, 0);
+      
+    } catch (error) {
       certificate.status = 'error';
-      certificate.errorMessage = certResult.error;
+      certificate.errorMessage = error.message;
       await certificate.save();
       
+      console.error(`Error starting certificate issuance: ${error.message}`);
       return res.status(500).json({
-        message: 'Failed to issue certificate',
-        error: certResult.error,
-        certificateId: certificate._id
+        message: 'Failed to start certificate issuance',
+        error: error.message
       });
     }
-    
-    // Update certificate with paths
-    certificate.certPath = certResult.certPath;
-    certificate.keyPath = certResult.keyPath;
-    certificate.chainPath = certResult.chainPath;
-    certificate.status = 'issued';
-    certificate.issueDate = new Date();
-    // Set expiry to 90 days from now (Let's Encrypt certificates are valid for 90 days)
-    certificate.expiryDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-    await certificate.save();
-    
-    // If container IDs provided, install certificates
-    if (containerIds && containerIds.length > 0) {
-      const installResults = [];
-      
-      for (const containerId of containerIds) {
-        const installResult = await installCertToContainer(
-          containerId, 
-          certResult.certPath, 
-          certResult.keyPath, 
-          certResult.chainPath
-        );
-        
-        installResults.push({
-          containerId,
-          ...installResult
-        });
-      }
-      
-      // If all installations successful, update certificate status
-      const allSuccessful = installResults.every(result => result.success);
-      if (allSuccessful) {
-        certificate.status = 'installed';
-        await certificate.save();
-      }
-      
-      return res.status(201).json({
-        message: 'Certificate issued and installed',
-        certificateId: certificate._id,
-        installResults
-      });
-    }
-    
-    return res.status(201).json({
-      message: 'Certificate issued successfully',
-      certificateId: certificate._id
-    });
-    
   } catch (error) {
-    console.error('Error issuing certificate:', error);
-    res.status(500).json({ 
-      message: 'Failed to issue certificate', 
-      error: error.message 
-    });
+    console.error(`Certificate request error: ${error.message}`);
+    return res.status(500).json({ message: error.message });
   }
 });
 

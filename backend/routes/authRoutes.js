@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
+const AWS = require('aws-sdk');
+const AwsCredentials = require('../models/AwsCredentials');
+const crypto = require('crypto');
 
 // Generate JWT
 const generateToken = (id) => {
@@ -10,6 +14,74 @@ const generateToken = (id) => {
     expiresIn: '30d',
   });
 };
+
+// Test route for DNS
+router.get('/test-dns', protect, async (req, res) => {
+  try {
+    // Get user's AWS credentials
+    const awsCredentials = await AwsCredentials.findOne({ userId: req.user._id });
+    if (!awsCredentials) {
+      return res.status(404).json({ message: 'AWS credentials not found' });
+    }
+
+    // Configure Route53
+    const route53 = new AWS.Route53({
+      accessKeyId: awsCredentials.accessKeyId,
+      secretAccessKey: awsCredentials.getDecryptedSecretKey(),
+      region: awsCredentials.region
+    });
+
+    // Get hosted zones
+    const { HostedZones } = await route53.listHostedZones().promise();
+    
+    // Find zone for thesugu.com
+    const hostedZone = HostedZones.find(
+      zone => zone.Name.includes('thesugu.com')
+    );
+    
+    if (!hostedZone) {
+      return res.status(404).json({ message: 'Hosted zone not found' });
+    }
+    
+    const hostedZoneId = hostedZone.Id.split('/').pop();
+    
+    // Create a test TXT record
+    const testValue = `test-${Date.now()}`;
+    const dnsParams = {
+      HostedZoneId: hostedZoneId,
+      ChangeBatch: {
+        Changes: [
+          {
+            Action: 'UPSERT',
+            ResourceRecordSet: {
+              Name: `_acme-test.thesugu.com.`,
+              Type: 'TXT',
+              TTL: 60,
+              ResourceRecords: [
+                {
+                  Value: `"${testValue}"`
+                }
+              ]
+            }
+          }
+        ]
+      }
+    };
+    
+    const result = await route53.changeResourceRecordSets(dnsParams).promise();
+    
+    return res.json({ 
+      success: true, 
+      message: 'Test DNS record created', 
+      testValue,
+      recordName: '_acme-test.thesugu.com',
+      changeInfo: result.ChangeInfo 
+    });
+  } catch (error) {
+    console.error('DNS test error:', error);
+    return res.status(500).json({ message: error.message });
+  }
+});
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
