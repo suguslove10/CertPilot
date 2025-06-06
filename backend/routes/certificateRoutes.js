@@ -201,7 +201,7 @@ const issueCertificate = async (domain, email, userId) => {
               TTL: 60,
               ResourceRecords: [
                 {
-                  Value: keyAuthDigest
+                  Value: `"${keyAuthDigest}"`
                 }
               ]
             }
@@ -335,7 +335,7 @@ const issueCertificate = async (domain, email, userId) => {
                   Name: `${dnsRecordName}.`,
                   Type: 'TXT',
                   TTL: 60,
-                  ResourceRecords: [{ Value: keyAuthDigest }]
+                  ResourceRecords: [{ Value: `"${keyAuthDigest}"` }]
                 }
               }
             ]
