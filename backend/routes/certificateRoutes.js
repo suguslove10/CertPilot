@@ -56,6 +56,42 @@ const checkDnsPropagation = async (domain, expectedIp) => {
   }
 };
 
+// Check if DNS TXT record has propagated
+const checkDnsTxtPropagation = async (recordName, expectedValue, maxAttempts = 10, delayBetweenAttempts = 10000) => {
+  const dns = require('dns').promises;
+  console.log(`Checking DNS TXT record propagation for ${recordName}...`);
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`DNS TXT check attempt ${attempt}/${maxAttempts}`);
+    
+    try {
+      const records = await dns.resolveTxt(recordName);
+      console.log(`DNS TXT records found: ${JSON.stringify(records)}`);
+      
+      // Check if any of the records match our expected value
+      const flatRecords = records.flat();
+      if (flatRecords.some(record => record === expectedValue)) {
+        console.log('✓ DNS TXT record has propagated successfully!');
+        return true;
+      }
+      
+      console.log(`DNS TXT record found but doesn't match expected value.`);
+      console.log(`Expected: ${expectedValue}`);
+      console.log(`Found: ${JSON.stringify(flatRecords)}`);
+    } catch (error) {
+      console.log(`DNS TXT record not found yet: ${error.message}`);
+    }
+    
+    if (attempt < maxAttempts) {
+      console.log(`Waiting ${delayBetweenAttempts/1000} seconds before next check...`);
+      await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+    }
+  }
+  
+  console.log(`DNS TXT record propagation check failed after ${maxAttempts} attempts.`);
+  return false;
+};
+
 // Function to issue certificate using ACME client (Let's Encrypt)
 const issueCertificate = async (domain, email, userId) => {
   try {
@@ -173,12 +209,24 @@ const issueCertificate = async (domain, email, userId) => {
     console.log('Creating DNS TXT record for ACME challenge');
     await route53.changeResourceRecordSets(dnsParams).promise();
     
-    // Wait for DNS propagation (at least 30 seconds)
-    console.log('Waiting for DNS propagation (30 seconds)...');
-    await new Promise(resolve => setTimeout(resolve, 30000));
+    // Wait for initial DNS propagation (1 minute)
+    console.log('Waiting 1 minute for initial DNS propagation...');
+    await new Promise(resolve => setTimeout(resolve, 60000));
+    
+    // Actively check for DNS propagation with retries
+    const propagated = await checkDnsTxtPropagation(
+      dnsRecordName,
+      keyAuthDigest,
+      10,  // 10 attempts
+      15000 // 15 seconds between attempts
+    );
+    
+    if (!propagated) {
+      console.log('WARNING: DNS propagation check failed, but continuing with the process anyway...');
+    }
     
     // Verify challenge
-    console.log('Verifying challenge...');
+    console.log('Verifying challenge with Let\'s Encrypt...');
     await client.verifyChallenge(authz, challenge);
     
     // Notify ACME provider that challenge is ready
@@ -216,35 +264,39 @@ const issueCertificate = async (domain, email, userId) => {
     console.log('Certificate issued successfully');
     
     // Clean up DNS record (in background to avoid delay)
-    setTimeout(async () => {
-      try {
-        const cleanupParams = {
-          HostedZoneId: hostedZoneId,
-          ChangeBatch: {
-            Changes: [
-              {
-                Action: 'DELETE',
-                ResourceRecordSet: {
-                  Name: `${dnsRecordName}.`,
-                  Type: 'TXT',
-                  TTL: 60,
-                  ResourceRecords: [
-                    {
-                      Value: `"${keyAuthDigest}"`
-                    }
-                  ]
+    if (propagated) {
+      setTimeout(async () => {
+        try {
+          const cleanupParams = {
+            HostedZoneId: hostedZoneId,
+            ChangeBatch: {
+              Changes: [
+                {
+                  Action: 'DELETE',
+                  ResourceRecordSet: {
+                    Name: `${dnsRecordName}.`,
+                    Type: 'TXT',
+                    TTL: 60,
+                    ResourceRecords: [
+                      {
+                        Value: `"${keyAuthDigest}"`
+                      }
+                    ]
+                  }
                 }
-              }
-            ]
-          }
-        };
-        
-        await route53.changeResourceRecordSets(cleanupParams).promise();
-        console.log('Cleaned up DNS challenge TXT record');
-      } catch (error) {
-        console.error('Error cleaning up DNS challenge record:', error);
-      }
-    }, 5000);
+              ]
+            }
+          };
+          
+          await route53.changeResourceRecordSets(cleanupParams).promise();
+          console.log('Cleaned up DNS challenge TXT record');
+        } catch (error) {
+          console.error('Error cleaning up DNS challenge record:', error);
+        }
+      }, 5000);
+    } else {
+      console.log('Skipping DNS record cleanup since propagation was not confirmed');
+    }
     
     return {
       success: true,
