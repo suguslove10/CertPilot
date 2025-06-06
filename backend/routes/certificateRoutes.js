@@ -11,6 +11,7 @@ const Subdomain = require('../models/Subdomain');
 const { protect } = require('../middleware/authMiddleware');
 const AwsCredentials = require('../models/AwsCredentials');
 const AWS = require('aws-sdk');
+const crypto = require('crypto');
 
 // Directory for storing certificates
 const CERT_DIR = process.env.CERT_DIR || path.join(process.cwd(), 'certificates');
@@ -130,11 +131,21 @@ const issueCertificate = async (domain, email, userId) => {
     
     // Prepare DNS challenge
     const keyAuthorization = await client.getChallengeKeyAuthorization(challenge);
-    const dnsRecord = acme.crypto.getDNSRecordName(authz.identifier.value);
-    const dnsRecordValue = acme.crypto.getDNSRecordValue(keyAuthorization);
     
-    console.log(`DNS challenge record: _acme-challenge.${domain}`);
-    console.log(`DNS challenge value: ${dnsRecordValue}`);
+    // For DNS-01 challenge, we need to create a TXT record with specific name and value
+    // The record name is always _acme-challenge.{domain}
+    // The value is a digest of the key authorization
+    const dnsRecordName = `_acme-challenge.${domain}`;
+    
+    // Calculate the correct DNS TXT record value
+    // This is SHA-256 digest of the key authorization, base64url-encoded
+    const keyAuthDigest = crypto.createHash('sha256').update(keyAuthorization).digest('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    
+    console.log(`DNS challenge record: ${dnsRecordName}`);
+    console.log(`DNS challenge value: ${keyAuthDigest}`);
     
     // Create TXT record in Route53
     const dnsParams = {
@@ -144,12 +155,12 @@ const issueCertificate = async (domain, email, userId) => {
           {
             Action: 'UPSERT',
             ResourceRecordSet: {
-              Name: `_acme-challenge.${domain}.`,
+              Name: `${dnsRecordName}.`,
               Type: 'TXT',
               TTL: 60,
               ResourceRecords: [
                 {
-                  Value: `"${dnsRecordValue}"`
+                  Value: `"${keyAuthDigest}"`
                 }
               ]
             }
@@ -214,12 +225,12 @@ const issueCertificate = async (domain, email, userId) => {
               {
                 Action: 'DELETE',
                 ResourceRecordSet: {
-                  Name: `_acme-challenge.${domain}.`,
+                  Name: `${dnsRecordName}.`,
                   Type: 'TXT',
                   TTL: 60,
                   ResourceRecords: [
                     {
-                      Value: `"${dnsRecordValue}"`
+                      Value: `"${keyAuthDigest}"`
                     }
                   ]
                 }
