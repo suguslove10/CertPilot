@@ -46,25 +46,35 @@ router.post('/', protect, async (req, res) => {
     }
 
     // Check if credentials already exist for this user
-    let credentials = await AwsCredentials.findOne({ userId: req.user._id });
+    const existingCredentials = await AwsCredentials.findOne({ userId: req.user._id });
 
-    if (credentials) {
-      // Update existing credentials - store raw value (will be encrypted in pre-save hook)
-      credentials.accessKeyId = accessKeyId;
-      credentials.secretAccessKey = secretAccessKey; // Raw value
-      credentials.region = region || credentials.region;
-      await credentials.save();
+    if (existingCredentials) {
+      try {
+        // For existing credentials, first delete the old one to avoid encryption issues
+        await AwsCredentials.deleteOne({ userId: req.user._id });
+        
+        // Create a new credential entry
+        await AwsCredentials.create({
+          userId: req.user._id,
+          accessKeyId,
+          secretAccessKey,
+          region: region || 'us-east-1'
+        });
 
-      return res.json({ 
-        message: 'AWS credentials updated successfully',
-        region: credentials.region
-      });
+        return res.json({ 
+          message: 'AWS credentials updated successfully',
+          region: region || 'us-east-1'
+        });
+      } catch (updateError) {
+        console.error('Error updating credentials:', updateError);
+        return res.status(500).json({ message: 'Failed to update credentials' });
+      }
     } else {
       // Create new credentials
-      credentials = await AwsCredentials.create({
+      const credentials = await AwsCredentials.create({
         userId: req.user._id,
         accessKeyId,
-        secretAccessKey, // Raw value will be encrypted in pre-save hook
+        secretAccessKey,
         region: region || 'us-east-1'
       });
 
@@ -74,7 +84,7 @@ router.post('/', protect, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error(error);
+    console.error('Error managing AWS credentials:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -108,16 +118,15 @@ router.get('/', protect, async (req, res) => {
 // @access  Private
 router.delete('/', protect, async (req, res) => {
   try {
-    const credentials = await AwsCredentials.findOne({ userId: req.user._id });
+    const result = await AwsCredentials.deleteOne({ userId: req.user._id });
 
-    if (!credentials) {
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'AWS credentials not found' });
     }
 
-    await credentials.remove();
-    res.json({ message: 'AWS credentials removed' });
+    res.json({ message: 'AWS credentials removed successfully' });
   } catch (error) {
-    console.error(error);
+    console.error('Error deleting AWS credentials:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
