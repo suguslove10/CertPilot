@@ -50,7 +50,7 @@ if [ $? -eq 0 ]; then
     echo -e "\n${GREEN}====== CertPilot Development Environment is now running! ======${NC}"
     echo -e "Access the application at:"
     echo -e "  Frontend: ${BLUE}http://localhost:8081${NC}"
-    echo -e "  Backend API: ${BLUE}http://localhost:5000${NC}"
+    echo -e "  Backend API: ${BLUE}http://localhost:5001${NC}"
     echo -e "  Traefik Dashboard: ${BLUE}http://localhost:8090/dashboard/${NC}"
     
     # Add local hosts entries reminder
