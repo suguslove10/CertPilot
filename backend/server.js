@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
+const AWS = require('aws-sdk');
 
 // Routes import
 const awsCredentialsRoutes = require('./routes/awsCredentialsRoutes');
@@ -19,6 +20,16 @@ const { verifyAwsCredentials } = require('./middleware/awsCredentialsMiddleware'
 
 // Load env variables
 dotenv.config();
+
+// Configure AWS globally at startup if environment variables exist
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+  console.log('Configuring AWS with environment variables globally');
+  AWS.config.update({
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID, 
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION || 'us-east-1'
+  });
+}
 
 // Verify AWS credentials on startup
 verifyAwsCredentials().then(verified => {

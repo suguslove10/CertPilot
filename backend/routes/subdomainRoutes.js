@@ -20,6 +20,18 @@ const getPublicIpAddress = async () => {
 
 // Get AWS credentials for a user
 const getUserAwsCredentials = async (userId) => {
+  // If environment variables are set, return a mock credentials object
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    console.log('Using AWS credentials from environment variables instead of database');
+    return {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      region: process.env.AWS_REGION || 'us-east-1',
+      // Mock the getDecryptedSecretKey method
+      getDecryptedSecretKey: () => process.env.AWS_SECRET_ACCESS_KEY
+    };
+  }
+
+  // Otherwise get from database
   const credentials = await AwsCredentials.findOne({ userId });
   if (!credentials) {
     throw new Error('AWS credentials not found');
@@ -32,13 +44,13 @@ const configureRoute53 = async (credentials, rawSecretKey) => {
   // First try to use environment variables
   if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
     console.log('Using AWS credentials from environment variables');
-    return new AWS.Route53({
-      credentials: new AWS.Credentials({
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-      }),
+    // Use the most direct configuration possible
+    AWS.config.update({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       region: process.env.AWS_REGION || credentials.region || 'us-east-1'
     });
+    return new AWS.Route53();
   }
   
   // Fall back to user credentials if environment variables not available
@@ -180,17 +192,15 @@ router.post('/', protect, async (req, res) => {
     } catch (awsError) {
       console.error('Error getting hosted zone:', awsError);
       
+      // If environment variables are set, never show the credential prompt
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+        console.log('AWS environment variables exist but still got an error. Bypassing credential prompt.');
+        throw awsError;
+      }
+      
       // If we get a signature error and don't have session credentials,
       // respond with a special error that tells the frontend to prompt for credentials
       if (awsError.code === 'SignatureDoesNotMatch' && !sessionCredentials) {
-        // Skip credential prompt if environment variables are available
-        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-          return res.status(500).json({
-            message: 'AWS API error',
-            error: awsError.message
-          });
-        }
-        
         return res.status(403).json({
           message: 'AWS credential verification required',
           needCredentials: true,
@@ -415,17 +425,15 @@ router.get('/zones/list', protect, async (req, res) => {
     } catch (awsError) {
       console.error('Error getting hosted zones:', awsError);
       
+      // If environment variables are set, never show the credential prompt
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+        console.log('AWS environment variables exist but still got an error. Bypassing credential prompt.');
+        throw awsError;
+      }
+      
       // If we get a signature error and don't have session credentials,
       // respond with a special error that tells the frontend to prompt for credentials
       if (awsError.code === 'SignatureDoesNotMatch' && !sessionCredentials) {
-        // Skip credential prompt if environment variables are available
-        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-          return res.status(500).json({
-            message: 'AWS API error',
-            error: awsError.message
-          });
-        }
-        
         return res.status(403).json({
           message: 'AWS credential verification required',
           needCredentials: true,
