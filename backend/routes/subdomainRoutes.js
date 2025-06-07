@@ -259,7 +259,7 @@ router.get('/:id', protect, async (req, res) => {
 // @desc    Update a subdomain
 // @access  Private
 router.put('/:id', protect, async (req, res) => {
-  const { recordType, ttl } = req.body;
+  const { recordType, ttl, applicationPort } = req.body;
   
   try {
     let subdomain = await Subdomain.findOne({
@@ -312,6 +312,10 @@ router.put('/:id', protect, async (req, res) => {
     // Update subdomain in database
     if (recordType) subdomain.recordType = recordType;
     if (ttl) subdomain.ttl = ttl;
+    if (typeof applicationPort !== 'undefined') {
+      console.log(`Updating application port for ${fullDomainName} to ${applicationPort}`);
+      subdomain.applicationPort = applicationPort;
+    }
     subdomain.targetIp = publicIp;
     
     subdomain = await subdomain.save();

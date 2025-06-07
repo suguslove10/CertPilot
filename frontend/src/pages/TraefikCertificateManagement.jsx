@@ -186,7 +186,7 @@ const TraefikCertificateManagement = () => {
             max="65535"
           />
           <p className="text-xs text-gray-500 mt-1">
-            The internal port your application listens on. Traefik will automatically route traffic to this port.
+            <strong>Required:</strong> The internal port your application listens on. For the frontend, use port 8081. For backend services, this is typically 5000 or another specific port. Traefik will route external HTTPS traffic to this internal port.
           </p>
         </div>
         
