@@ -6,7 +6,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8090:8080"  # Make the dashboard accessible from all interfaces for development
+      - "8090:8080"  # Make dashboard accessible to end users
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml

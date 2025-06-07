@@ -1,9 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Alert, Button, Card } from 'react-bootstrap';
 
 const TraefikDashboard = () => {
   const { user } = useAuth();
   const [dashboardUrl, setDashboardUrl] = useState('http://localhost:8090/dashboard/');
+  const [iframeError, setIframeError] = useState(false);
+  
+  // Update the dashboard URL based on the current hostname
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      setDashboardUrl(`http://${hostname}:8090/dashboard/`);
+    }
+  }, []);
+
+  // Handle iframe load error
+  const handleIframeError = () => {
+    setIframeError(true);
+  };
   
   return (
     <div className="container mx-auto p-4">
@@ -23,15 +38,41 @@ const TraefikDashboard = () => {
             />
             <button
               className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md ml-2"
-              onClick={() => setDashboardUrl(document.getElementById('dashboard-frame').src)}
+              onClick={() => {
+                setIframeError(false);
+                const iframe = document.getElementById('dashboard-frame');
+                if (iframe) {
+                  iframe.src = dashboardUrl;
+                }
+              }}
             >
               Refresh
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            By default, the Traefik dashboard is available at http://localhost:8090/dashboard/
+            The Traefik dashboard allows you to monitor routing, services, and certificates
           </p>
         </div>
+        
+        {iframeError && (
+          <Alert variant="warning" className="mb-4">
+            <Alert.Heading>Cannot access dashboard</Alert.Heading>
+            <p>
+              The dashboard cannot be embedded due to browser security restrictions or connection issues.
+              You can try accessing it directly:
+            </p>
+            <div className="mt-2">
+              <Button 
+                variant="primary" 
+                href={dashboardUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                Open Dashboard in New Tab
+              </Button>
+            </div>
+          </Alert>
+        )}
         
         <div className="border rounded-lg overflow-hidden bg-gray-100">
           <iframe
@@ -39,6 +80,7 @@ const TraefikDashboard = () => {
             src={dashboardUrl}
             className="w-full h-[700px]"
             title="Traefik Dashboard"
+            onError={handleIframeError}
           ></iframe>
         </div>
       </div>
