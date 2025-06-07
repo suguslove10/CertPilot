@@ -4,18 +4,14 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# Install all dependencies including dev dependencies
+# Install dependencies
 RUN npm install
 
-# Install Tailwind CSS dependencies 
-RUN npm install -D tailwindcss postcss autoprefixer
-
-# Create empty Tailwind config files since we'll use the mounted ones
-RUN echo "module.exports = { content: [], theme: { extend: {} }, plugins: [] };" > tailwind.config.js
-RUN echo "module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };" > postcss.config.js
-
+# Copy all frontend files
 COPY . .
 
+# Expose port for Vite dev server
 EXPOSE 3000
 
+# Start Vite dev server with host flag to make it accessible outside the container
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"] 

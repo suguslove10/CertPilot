@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: certpilot-traefik
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8090:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml
+      - ./traefik/dynamic:/etc/traefik/dynamic
+      - cert-data:/etc/certpilot/certificates
+    networks:
+      - certpilot-network
+
+  backend:
+    build: ./backend
+    container_name: certpilot-backend
+    restart: always
+    env_file:
+      - ./backend.env
+    volumes:
+      - cert-data:/etc/certpilot/certificates
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/dynamic:/etc/traefik/dynamic
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongo:27017/certpilot
+      - JWT_SECRET=your_jwt_secret_here
+      - CERT_DIR=/etc/certpilot/certificates
+      - TRAEFIK_DYNAMIC_DIR=/etc/traefik/dynamic
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+    networks:
+      - certpilot-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.certpilot.local`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=5000"
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: certpilot-frontend
+    restart: always
+    ports:
+      - "8081:3000"  # Map to Vite dev server port
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - certpilot-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`certpilot.local`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  mongo:
+    image: mongo:latest
+    container_name: certpilot-mongo
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - certpilot-network
+
+networks:
+  certpilot-network:
+    name: certpilot-network
+    driver: bridge
+
+volumes:
+  mongo-data:
+    driver: local
+  cert-data:
+    driver: local 
