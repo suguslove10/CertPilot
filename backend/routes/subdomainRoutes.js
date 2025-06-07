@@ -340,6 +340,8 @@ router.put('/:id', protect, async (req, res) => {
 // @access  Private
 router.delete('/:id', protect, async (req, res) => {
   try {
+    const forceDelete = req.query.force === 'true';
+    
     const subdomain = await Subdomain.findOne({
       _id: req.params.id,
       userId: req.user._id
@@ -349,43 +351,87 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Subdomain not found' });
     }
     
-    // Get user's AWS credentials
-    const credentials = await getUserAwsCredentials(req.user._id);
-    
-    // Configure AWS Route53
-    const route53 = await configureRoute53(credentials);
-    
-    // Full domain name
+    // Full domain name for logging
     const fullDomainName = `${subdomain.name}.${subdomain.parentDomain}`;
     
-    // Parameters for the DNS record deletion
-    const params = {
-      HostedZoneId: subdomain.hostedZoneId,
-      ChangeBatch: {
-        Changes: [
-          {
-            Action: 'DELETE',
-            ResourceRecordSet: {
-              Name: fullDomainName,
-              Type: subdomain.recordType,
-              TTL: subdomain.ttl,
-              ResourceRecords: [
-                {
-                  Value: subdomain.targetIp
+    try {
+      // Skip Route53 deletion if force delete is enabled
+      if (!forceDelete) {
+        // Get user's AWS credentials
+        const credentials = await getUserAwsCredentials(req.user._id);
+        
+        // Configure AWS Route53
+        const route53 = await configureRoute53(credentials);
+      
+        // Parameters for the DNS record deletion
+        const params = {
+          HostedZoneId: subdomain.hostedZoneId,
+          ChangeBatch: {
+            Changes: [
+              {
+                Action: 'DELETE',
+                ResourceRecordSet: {
+                  Name: fullDomainName,
+                  Type: subdomain.recordType,
+                  TTL: subdomain.ttl,
+                  ResourceRecords: [
+                    {
+                      Value: subdomain.targetIp
+                    }
+                  ]
                 }
-              ]
-            }
+              }
+            ],
+            Comment: 'CertPilot - Deleted subdomain'
           }
-        ],
-        Comment: 'CertPilot - Deleted subdomain'
+        };
+        
+        // Make the change in Route53
+        await createOrUpdateDnsRecord(route53, params);
+        console.log(`Successfully deleted Route53 record for ${fullDomainName}`);
+      } else {
+        console.log(`Skipping Route53 record deletion for ${fullDomainName} (force delete enabled)`);
       }
-    };
+    } catch (awsError) {
+      console.error(`Error deleting Route53 record: ${awsError.message}`);
+      
+      // If not force deleting, return the error
+      if (!forceDelete) {
+        return res.status(500).json({
+          message: 'Failed to delete subdomain',
+          error: awsError.message,
+          canForceDelete: true // Indicate that force delete is an option
+        });
+      }
+      
+      // Otherwise log and continue with database deletion
+      console.log(`Continuing with database deletion despite Route53 error (force delete enabled)`);
+    }
     
-    // Make the change in Route53
-    await createOrUpdateDnsRecord(route53, params);
+    // Delete certificates associated with this subdomain
+    try {
+      const Certificate = require('../models/Certificate');
+      const certificates = await Certificate.find({ subdomainId: subdomain._id });
+      
+      // Delete related Traefik configurations
+      const traefikManager = require('../services/traefikManager');
+      if (subdomain.traefikRouter) {
+        await traefikManager.removeRouterConfig(subdomain);
+      }
+      
+      // Delete certificate records
+      for (const cert of certificates) {
+        await Certificate.findByIdAndDelete(cert._id);
+      }
+      
+      console.log(`Deleted ${certificates.length} certificates for ${fullDomainName}`);
+    } catch (certError) {
+      console.error(`Error deleting certificates: ${certError.message}`);
+      // Continue with subdomain deletion even if certificate deletion fails
+    }
     
-    // Delete from database
-    await subdomain.remove();
+    // Delete from database using findByIdAndDelete for Mongoose v6+ compatibility
+    await Subdomain.findByIdAndDelete(subdomain._id);
     
     res.json({ 
       message: 'Subdomain deleted successfully'

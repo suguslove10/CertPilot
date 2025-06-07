@@ -3,10 +3,12 @@ entryPoints:
     address: ":80"
   websecure:
     address: ":443"
+  dashboard:
+    address: ":8080"
 
 api:
   dashboard: true
-  insecure: true
+  insecure: false
 
 providers:
   docker:
@@ -29,4 +31,16 @@ certificatesResolvers:
         entryPoint: "web"
 
 log:
-  level: "DEBUG" 
+  level: "INFO"
+
+http:
+  middlewares:
+    secureHeaders:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000 

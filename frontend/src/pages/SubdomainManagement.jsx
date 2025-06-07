@@ -147,13 +147,19 @@ const SubdomainManagement = () => {
     }
   };
   
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this subdomain?')) {
+  const handleDelete = async (id, force = false) => {
+    if (!window.confirm(force 
+      ? 'Force delete will remove the subdomain from the database but might leave DNS records in AWS. Continue?' 
+      : 'Are you sure you want to delete this subdomain?')) {
       return;
     }
     
     try {
-      await axios.delete(`/api/subdomains/${id}`);
+      const url = force 
+        ? `/api/subdomains/${id}?force=true` 
+        : `/api/subdomains/${id}`;
+        
+      await axios.delete(url);
       setSuccess('Subdomain deleted successfully');
       
       // Refresh subdomains list
@@ -170,6 +176,23 @@ const SubdomainManagement = () => {
         if (err.response?.data?.region) {
           setStoredRegion(err.response.data.region);
         }
+      } else if (err.response?.data?.canForceDelete) {
+        // Show error with force delete option
+        setError(
+          <div>
+            <p>{err.response?.data?.message || 'Failed to delete subdomain from AWS Route53'}</p>
+            <p>Error: {err.response?.data?.error}</p>
+            <p>
+              <Button 
+                variant="warning" 
+                size="sm"
+                onClick={() => handleDelete(id, true)}
+              >
+                Force Delete from Database Only
+              </Button>
+            </p>
+          </div>
+        );
       } else {
         setError(err.response?.data?.message || 'Failed to delete subdomain');
       }

@@ -24,6 +24,7 @@ CertPilot is a comprehensive web application for managing SSL certificates and A
   - [Manual Installation](#manual-installation)
 - [AWS Credentials Setup](#-aws-credentials-setup)
 - [Usage Guide](#-usage-guide)
+- [Traefik Dashboard](#traefik-dashboard)
 - [License](#-license)
 
 ## 🚀 Features
@@ -134,6 +135,41 @@ If you can't access the frontend:
 ## 📄 License
 
 This project is licensed under the MIT License.
+
+## Traefik Dashboard
+
+### Local Development
+In development mode, the Traefik dashboard is accessible at [http://localhost:8090/dashboard/](http://localhost:8090/dashboard/).
+
+### Production Access
+For security reasons, the Traefik dashboard in production is:
+
+1. Bound only to localhost (127.0.0.1) on port 8090
+2. Protected with basic authentication (default credentials: admin/certpilot)
+3. Accessible via:
+   - SSH tunnel using the provided `dashboard-access.sh` script
+   - Domain-based access at `traefik.<your-domain>` with HTTPS and basic auth
+
+To securely access the dashboard from your local machine:
+
+```bash
+# Usage
+./dashboard-access.sh <remote_user> <remote_host>
+
+# Example
+./dashboard-access.sh ubuntu 123.45.67.89
+```
+
+Then access the dashboard at [http://localhost:8090/dashboard/](http://localhost:8090/dashboard/)
+
+**IMPORTANT:** For production deployment, change the default credentials in both:
+- `traefik/dynamic/dashboard.yml`  
+- `docker-compose.yml` (the traefik service labels)
+
+Generate new credentials with:
+```bash
+htpasswd -nb admin <your-secure-password>
+```
 
 ---
 

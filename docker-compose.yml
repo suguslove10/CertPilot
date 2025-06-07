@@ -8,14 +8,25 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8090:8080"
+      - "127.0.0.1:8090:8080"  # Only accessible from localhost for security
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml
       - ./traefik/dynamic:/etc/traefik/dynamic
       - cert-data:/etc/certpilot/certificates
+    environment:
+      - DOMAIN=${DOMAIN:-certpilot.local}
     networks:
       - certpilot-network
+    labels:
+      - "traefik.enable=true"
+      # Dashboard access through a subdomain with authentication
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN:-certpilot.local}`)"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.middlewares=traefik-auth"
+      # Middleware for basic authentication
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$apr1$$ruca84Hq$$mbjdMZBAG.KWn7vfN/SNK/"
 
   backend:
     build: ./backend
