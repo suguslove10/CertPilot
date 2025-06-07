@@ -70,9 +70,10 @@ const TraefikCertificateManagement = () => {
         applicationPort
       });
       
-      // Then request certificate through Traefik
+      // Then request certificate through Traefik - pass applicationPort directly
       const response = await axios.post('/api/traefik-certificates', {
-        subdomainId: selectedSubdomain
+        subdomainId: selectedSubdomain,
+        applicationPort // Pass the port directly to the certificate endpoint
       });
       
       toast.success('Certificate configuration initiated');

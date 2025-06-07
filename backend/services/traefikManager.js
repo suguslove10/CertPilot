@@ -31,11 +31,10 @@ const generateRouterConfig = async (subdomain) => {
     const domain = `${subdomain.name}.${subdomain.parentDomain}`;
     const routerName = domain.replace(/\./g, '-');
     
-    // Get application port, defaulting to 8081 for frontends or 80 otherwise
-    const applicationPort = subdomain.applicationPort || 
-                           (domain.startsWith('bad.') ? 8081 : 80);
+    // Use the user-specified port or default to 80 if not set
+    const applicationPort = subdomain.applicationPort || 80;
     
-    console.log(`Generating configuration for ${domain} with target ${subdomain.targetIp}:${applicationPort}`);
+    console.log(`Generating configuration for ${domain} with target ${subdomain.targetIp}:${applicationPort} (subdomain.applicationPort=${subdomain.applicationPort})`);
     
     // Create router configuration
     const config = {
@@ -83,7 +82,6 @@ const generateRouterConfig = async (subdomain) => {
     
     // Update subdomain with router info
     subdomain.traefikRouter = routerName;
-    subdomain.applicationPort = applicationPort;
     await subdomain.save();
     
     return configPath;

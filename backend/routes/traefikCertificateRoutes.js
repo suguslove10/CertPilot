@@ -46,7 +46,7 @@ router.get('/:id', protect, async (req, res) => {
 // @desc    Issue a new SSL certificate for a subdomain using Traefik
 // @access  Private
 router.post('/', protect, async (req, res) => {
-  const { subdomainId } = req.body;
+  const { subdomainId, applicationPort } = req.body;
   
   try {
     // Get subdomain
@@ -71,6 +71,13 @@ router.post('/', protect, async (req, res) => {
     
     // Full domain name
     const domain = `${subdomain.name}.${subdomain.parentDomain}`;
+    
+    // If applicationPort was provided, update the subdomain first
+    if (applicationPort) {
+      console.log(`Setting application port for ${domain} to ${applicationPort}`);
+      subdomain.applicationPort = applicationPort;
+      await subdomain.save();
+    }
     
     // Create new certificate record
     const certificate = await Certificate.create({
