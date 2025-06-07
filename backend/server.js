@@ -12,6 +12,7 @@ const authRoutes = require('./routes/authRoutes');
 const subdomainRoutes = require('./routes/subdomainRoutes');
 const serverDetectionRoutes = require('./routes/serverDetectionRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
+const traefikCertificateRoutes = require('./routes/traefikCertificateRoutes');
 
 // Load env variables
 dotenv.config();
@@ -57,12 +58,17 @@ app.use('/.well-known/acme-challenge', (req, res, next) => {
 
 app.use('/.well-known/acme-challenge', express.static(path.join(process.cwd(), '.well-known', 'acme-challenge')));
 
+// Initialize Traefik dynamic directory
+const traefikManager = require('./services/traefikManager');
+traefikManager.ensureDynamicDir().catch(console.error);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/aws-credentials', awsCredentialsRoutes);
 app.use('/api/subdomains', subdomainRoutes);
 app.use('/api/server-detection', serverDetectionRoutes);
 app.use('/api/certificates', certificateRoutes);
+app.use('/api/traefik-certificates', traefikCertificateRoutes);
 
 // Home route for testing
 app.get('/', (req, res) => {

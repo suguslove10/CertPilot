@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import AwsCredentials from './pages/AwsCredentials';
 import SubdomainManagement from './pages/SubdomainManagement';
 import CertificateManagement from './pages/CertificateManagement';
+import TraefikCertificateManagement from './pages/TraefikCertificateManagement';
+import TraefikDashboard from './pages/TraefikDashboard';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -49,6 +51,22 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <CertificateManagement />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/traefik-certificates" 
+              element={
+                <PrivateRoute>
+                  <TraefikCertificateManagement />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/traefik-dashboard" 
+              element={
+                <PrivateRoute>
+                  <TraefikDashboard />
                 </PrivateRoute>
               } 
             />

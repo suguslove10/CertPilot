@@ -33,6 +33,23 @@ const SubdomainSchema = new mongoose.Schema({
     type: Number,
     default: 300
   },
+  // New fields for Traefik integration
+  useTraefik: {
+    type: Boolean,
+    default: true
+  },
+  applicationPort: {
+    type: Number,
+    default: 80
+  },
+  traefikRouter: {
+    type: String,
+    default: null
+  },
+  httpsRedirect: {
+    type: Boolean,
+    default: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
