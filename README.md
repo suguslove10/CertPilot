@@ -20,11 +20,7 @@ CertPilot is a comprehensive web application for managing SSL certificates and A
 - [Features](#-features)
 - [Architecture](#-architecture)
 - [Technology Stack](#-technology-stack)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation Options](#installation-options)
-  - [Traefik SSL Management](#traefik-ssl-management)
-  - [Development Setup](#development-setup)
+- [Quick Start](#-quick-start)
 - [Usage Guide](#-usage-guide)
   - [Setting Up AWS Credentials](#setting-up-aws-credentials)
   - [Managing Subdomains](#managing-subdomains)
@@ -96,80 +92,57 @@ User → Traefik Proxy → Frontend (React) → Backend (Node.js) → AWS Route5
 - **Traefik** - Edge router and reverse proxy
 - **Let's Encrypt** - Certificate authority
 
-## 🚦 Getting Started
+## 🚦 Quick Start
 
 ### Prerequisites
 
 - **Docker and Docker Compose** - [Installation Guide](https://docs.docker.com/get-docker/)
 - **AWS Account** - With Route53 access
 - **Domain Name** - Managed through Route53
-- **Git** - For cloning the repository
 
-### Installation Options
+### Standard Installation
 
-#### Option 1: Standard Deployment
-
-1. Clone the repository
 ```bash
+# 1. Clone the repository
 git clone https://github.com/suguslove10/certpilot.git
 cd certpilot
-```
 
-2. Start the application
-```bash
+# 2. Start the application
 docker-compose up -d
+
+# 3. Access the application
+# Frontend: http://localhost
+# API: http://localhost:5000/api
 ```
 
-3. Access the application
-```
-Frontend: http://localhost
-API: http://localhost:5000/api
-```
+### Using Traefik (Advanced)
 
-#### Option 2: Traefik SSL Management
-
-1. Clone the repository
 ```bash
+# 1. Clone the repository
 git clone https://github.com/suguslove10/certpilot.git
 cd certpilot
-```
 
-2. Start the application with Traefik
-```bash
+# 2. Start with Traefik
 ./start-traefik.sh
-```
 
-3. Configure local domains (development only)
-```bash
-# Add to your hosts file (/etc/hosts on Unix/Linux/Mac, C:\Windows\System32\drivers\etc\hosts on Windows)
-127.0.0.1 certpilot.local api.certpilot.local
-```
+# 3. For local testing, add to hosts file:
+# 127.0.0.1 certpilot.local api.certpilot.local
 
-4. Access the application
-```
-Frontend: http://certpilot.local
-API: http://api.certpilot.local
-Traefik Dashboard: http://localhost:8090/dashboard/
+# 4. Access:
+# Frontend: http://certpilot.local
+# API: http://api.certpilot.local
+# Traefik Dashboard: http://localhost:8090/dashboard/
 ```
 
 ### Development Setup
 
-1. Clone the repository
 ```bash
-git clone https://github.com/suguslove10/certpilot.git
-cd certpilot
-```
-
-2. Start the development environment
-```bash
+# Run in development mode with hot-reloading
 docker-compose -f docker-compose.dev.yml up -d
-```
 
-3. Access the application
-```
-Frontend: http://localhost:3000
-API: http://localhost:5001/api
-MongoDB: mongodb://localhost:27017/certpilot
+# Access:
+# Frontend: http://localhost:3000
+# API: http://localhost:5001/api
 ```
 
 ## 📘 Usage Guide
