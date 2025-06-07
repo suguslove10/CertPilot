@@ -150,6 +150,7 @@ cd certpilot
 # Frontend: http://certpilot.local
 # API: http://api.certpilot.local
 # Traefik Dashboard: http://localhost:8090/dashboard/
+# Direct Frontend Access (for internal users): http://YOUR_SERVER_IP:8081
 ```
 
 ### Development Setup

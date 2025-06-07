@@ -45,6 +45,8 @@ services:
     image: nginx:alpine
     container_name: certpilot-frontend
     restart: always
+    ports:
+      - "8081:80"  # Direct access on port 8081 for internal users
     volumes:
       - ./frontend/dist:/usr/share/nginx/html
       - ./frontend/nginx/default.conf:/etc/nginx/conf.d/default.conf
