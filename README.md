@@ -20,6 +20,8 @@ CertPilot is a comprehensive web application for managing SSL certificates and A
 - [Features](#-features)
 - [Technology Stack](#-technology-stack)
 - [Installation](#-installation)
+  - [One-Click Installation](#one-click-installation)
+  - [Manual Installation](#manual-installation)
 - [AWS Credentials Setup](#-aws-credentials-setup)
 - [Usage Guide](#-usage-guide)
 - [License](#-license)
@@ -41,6 +43,29 @@ CertPilot is a comprehensive web application for managing SSL certificates and A
 - **AWS**: Route53, IAM
 
 ## 📥 Installation
+
+### One-Click Installation
+
+For a quick and easy setup, use our installation script:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/suguslove10/CertPilot.git
+cd CertPilot
+
+# 2. Run the installation script
+./install.sh
+```
+
+The script will:
+- Check for Docker and Docker Compose
+- Guide you through AWS credential setup
+- Create the necessary configuration files
+- Start the application
+
+### Manual Installation
+
+If you prefer to set up manually:
 
 ```bash
 # 1. Clone the repository
