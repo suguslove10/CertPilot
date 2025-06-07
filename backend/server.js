@@ -14,8 +14,20 @@ const serverDetectionRoutes = require('./routes/serverDetectionRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
 const traefikCertificateRoutes = require('./routes/traefikCertificateRoutes');
 
+// Middleware import
+const { verifyAwsCredentials } = require('./middleware/awsCredentialsMiddleware');
+
 // Load env variables
 dotenv.config();
+
+// Verify AWS credentials on startup
+verifyAwsCredentials().then(verified => {
+  if (verified) {
+    console.log('AWS environment variables are set up correctly. Users will not be prompted for credentials.');
+  } else {
+    console.log('Please configure AWS credentials in backend.env file to avoid credential prompts.');
+  }
+});
 
 const app = express();
 

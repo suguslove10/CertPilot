@@ -18,168 +18,84 @@ CertPilot is a comprehensive web application for managing SSL certificates and A
 ## 📋 Table of Contents
 
 - [Features](#-features)
-- [Architecture](#-architecture)
 - [Technology Stack](#-technology-stack)
 - [Quick Start](#-quick-start)
-- [Usage Guide](#-usage-guide)
-  - [Setting Up AWS Credentials](#setting-up-aws-credentials)
+- [Setup Instructions](#-setup-instructions)
+  - [AWS Credentials Setup](#aws-credentials-setup)
   - [Managing Subdomains](#managing-subdomains)
   - [Certificate Management](#certificate-management)
 - [Troubleshooting](#-troubleshooting)
-- [Security Considerations](#-security-considerations)
-- [Contributing](#-contributing)
 - [License](#-license)
 
 ## 🚀 Features
 
-### Core Functionality
-- **User Authentication** - Secure register, login, and session management
-- **AWS Integration** - Secure credential management with encryption
-- **Route53 DNS Management** - Create and manage DNS records
+- **Secure AWS Integration** - Reliable credential management with AWS SDK
+- **Route53 DNS Management** - Create and manage DNS records with ease
 - **SSL Automation** - Automated certificate provisioning and renewal
-- **Multiple Deployment Options** - Standard or Traefik-based deployment
-
-### UI/UX Features
-- **Modern Interface** - Clean design with Tailwind CSS
-- **Responsive Design** - Optimized for all device sizes
-- **Interactive Components** - Rich user experience with feedback
-- **Accessibility** - WCAG-compliant form elements and navigation
-- **Real-time Status Updates** - Visual indicators for all operations
-
-### Advanced Features
 - **Traefik Integration** - Centralized SSL management with edge routing
+- **Modern Interface** - Clean, responsive design with Tailwind CSS
 - **Container Support** - Direct certificate installation to Docker containers
-- **Auto-renewal** - Automatic certificate renewal management
-- **Port Independence** - Applications can run on any internal port
-
-## 🏗 Architecture
-
-CertPilot offers two deployment architectures:
-
-### Standard Architecture
-```
-User → Frontend (React) → Backend (Node.js) → AWS Route53
-                                            → Let's Encrypt
-                                            → MongoDB
-```
-
-### Traefik-based Architecture
-```
-User → Traefik Proxy → Frontend (React) → Backend (Node.js) → AWS Route53
-                     ↓                                      → MongoDB
-             Let's Encrypt ACME
-```
+- **HTTP to HTTPS Redirection** - Automatic redirection handled by Traefik
 
 ## 💻 Technology Stack
 
-### Frontend
-- **React** - Component-based UI library
-- **Tailwind CSS** - Utility-first CSS framework
-- **React Router** - Client-side routing
-- **Axios** - HTTP client for API requests
-- **React Hook Form** - Form state management
-
-### Backend
-- **Node.js** - JavaScript runtime
-- **Express** - Web framework
-- **MongoDB** - NoSQL database
-- **JWT** - Authentication tokens
-- **AWS SDK** - AWS service integration
-
-### Infrastructure
-- **Docker** - Containerization
-- **Docker Compose** - Multi-container orchestration
-- **Traefik** - Edge router and reverse proxy
-- **Let's Encrypt** - Certificate authority
+- **Frontend**: React, Tailwind CSS
+- **Backend**: Node.js, Express, MongoDB
+- **Infrastructure**: Docker, Docker Compose, Traefik
+- **SSL**: Let's Encrypt, Traefik ACME
+- **AWS**: Route53, IAM
 
 ## 🚦 Quick Start
 
-### One-Click Installation (Recommended)
-
-The easiest way to install CertPilot is using our one-click installation script:
-
-```bash
-# Download and run the installer
-curl -sSL https://raw.githubusercontent.com/suguslove10/CertPilot/master/install.sh | bash
-```
-
-Or if you've already cloned the repository:
-
-```bash
-# Run the installer
-./install.sh
-```
-
-The script will guide you through the installation process with simple prompts.
-
-### Prerequisites
-
-- **Docker and Docker Compose** - [Installation Guide](https://docs.docker.com/get-docker/)
-- **AWS Account** - With Route53 access
-- **Domain Name** - Managed through Route53
-
-### Standard Installation
+The quickest way to start CertPilot is using the Traefik setup:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/suguslove10/certpilot.git
-cd certpilot
+git clone https://github.com/suguslove10/CertPilot.git
+cd CertPilot
 
-# 2. Start the application
-docker-compose up -d
+# 2. Configure AWS credentials
+# Edit the backend.env file with your AWS credentials
+nano backend.env
 
-# 3. Access the application
-# Frontend: http://localhost
-# API: http://localhost:5000/api
-```
-
-### Using Traefik (Advanced)
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/suguslove10/certpilot.git
-cd certpilot
-
-# 2. Start with Traefik
+# 3. Start the application with Traefik
 ./start-traefik.sh
 
-# 3. For local testing, add to hosts file:
-# 127.0.0.1 certpilot.local api.certpilot.local
-
-# 4. Access:
-# Frontend: http://certpilot.local
-# API: http://api.certpilot.local
-# Traefik Dashboard: http://localhost:8090/dashboard/
-# Direct Frontend Access (for internal users): http://YOUR_SERVER_IP:8081
+# 4. Access the application
+# Frontend: http://YOUR_SERVER_IP:8081
+# Traefik Dashboard: http://YOUR_SERVER_IP:8090/dashboard/
 ```
 
-### Development Setup
+## 📝 Setup Instructions
+
+### AWS Credentials Setup
+
+CertPilot requires AWS credentials with permissions for Route53. There are two ways to set up credentials:
+
+#### Method 1: Environment Variables (Recommended)
+
+1. Edit the `backend.env` file with your AWS credentials:
+
+```
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=ap-south-1
+```
+
+2. Restart the containers:
 
 ```bash
-# Run in development mode with hot-reloading
-docker-compose -f docker-compose.dev.yml up -d
-
-# Access:
-# Frontend: http://localhost:3000
-# API: http://localhost:5001/api
+docker-compose -f docker-compose.traefik.yml down
+docker-compose -f docker-compose.traefik.yml up -d
 ```
 
-## 📘 Usage Guide
+This method is more reliable and avoids credential verification issues.
 
-### Setting Up AWS Credentials
+#### Method 2: Web Interface
 
-1. Sign in to your AWS account and create an IAM user with the following permissions:
-   - `route53:ListHostedZones`
-   - `route53:GetHostedZone`
-   - `route53:ChangeResourceRecordSets`
-   - `route53:ListResourceRecordSets`
-
-2. Generate access keys for this IAM user
-
-3. In CertPilot, navigate to "AWS Credentials" and add your credentials:
-   - Access Key ID
-   - Secret Access Key
-   - AWS Region (e.g., us-east-1)
+1. Navigate to "AWS Credentials" in the CertPilot UI
+2. Enter your Access Key ID, Secret Access Key, and Region
+3. Click "Save Credentials"
 
 ### Managing Subdomains
 
@@ -196,17 +112,7 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ### Certificate Management
 
-#### Standard Method
-
-1. Navigate to "SSL Certificates" in the CertPilot UI
-
-2. Select the subdomain you want to secure
-
-3. Select target containers for certificate installation (optional)
-
-4. Click "Issue Certificate" and wait for the process to complete
-
-#### Traefik Method
+#### Using Traefik (Recommended)
 
 1. Navigate to "Traefik SSL" in the CertPilot UI
 
@@ -218,63 +124,48 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ## 🔧 Troubleshooting
 
-### Common Issues and Solutions
+### AWS Credential Issues
 
-#### Docker Containers Not Starting
+If you encounter "SignatureDoesNotMatch" errors:
 
-```bash
-# Check container status
-docker-compose ps
+1. Use the environment variable method (backend.env file)
+2. Ensure your AWS credentials are correct and have proper permissions
+3. Check that your server's time is synchronized:
+   ```bash
+   sudo apt-get update && sudo apt-get install -y ntp && sudo service ntp restart
+   ```
 
-# View container logs
-docker-compose logs -f [service_name]
-```
+### Connection Issues
 
-#### Certificate Issuance Failures
+If you can't access the frontend:
 
-1. **DNS Propagation Issues**
-   - Verify your domain's DNS has propagated with `dig +short yourdomain.com`
-   - Wait 15-30 minutes for DNS changes to propagate globally
+1. Check if containers are running:
+   ```bash
+   docker ps
+   ```
 
-2. **AWS Credentials Problems**
-   - Verify your AWS credentials have the correct permissions
-   - Try re-entering your AWS credentials in the UI
+2. Verify port 8081 is open in your firewall/security group
 
-3. **Let's Encrypt Rate Limits**
-   - Check if you've hit Let's Encrypt rate limits (5 failed validations per hour)
-   - Wait an hour before trying again
+3. Check frontend container logs:
+   ```bash
+   docker logs certpilot-frontend
+   ```
 
-#### Traefik-specific Issues
+### Traefik Issues
 
-1. **Port Conflicts**
-   - Ensure ports 80, 443, and 8090 are available on your host
-   - Check with `netstat -tuln | grep -E '80|443|8090'`
+1. Check Traefik logs:
+   ```bash
+   docker logs certpilot-traefik
+   ```
 
-2. **Configuration Problems**
-   - Check Traefik logs: `docker logs certpilot-traefik`
-   - Verify dynamic configuration: `docker exec certpilot-backend ls -la /etc/traefik/dynamic/`
-
-## 🔒 Security Considerations
-
-- **AWS Credentials**: Stored with AES-256 encryption in the database
-- **JWT Tokens**: Used for secure API access with short expiration times
-- **HTTPS**: All production traffic should use HTTPS
-- **Container Isolation**: Services run in isolated containers
-- **Least Privilege**: Always use IAM users with minimal required permissions
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Verify dynamic configuration:
+   ```bash
+   docker exec certpilot-backend ls -la /etc/traefik/dynamic/
+   ```
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
 ---
 

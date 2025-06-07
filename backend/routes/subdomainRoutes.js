@@ -29,6 +29,16 @@ const getUserAwsCredentials = async (userId) => {
 
 // Configure AWS Route53 with user credentials
 const configureRoute53 = async (credentials, rawSecretKey) => {
+  // First try to use environment variables
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    return new AWS.Route53({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION || credentials.region || 'us-east-1'
+    });
+  }
+  
+  // Fall back to user credentials if environment variables not available
   // Use the raw secret key (if provided) or the stored encrypted one
   return new AWS.Route53({
     accessKeyId: credentials.accessKeyId,
@@ -169,6 +179,14 @@ router.post('/', protect, async (req, res) => {
       // If we get a signature error and don't have session credentials,
       // respond with a special error that tells the frontend to prompt for credentials
       if (awsError.code === 'SignatureDoesNotMatch' && !sessionCredentials) {
+        // Skip credential prompt if environment variables are available
+        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+          return res.status(500).json({
+            message: 'AWS API error',
+            error: awsError.message
+          });
+        }
+        
         return res.status(403).json({
           message: 'AWS credential verification required',
           needCredentials: true,
@@ -376,11 +394,7 @@ router.get('/zones/list', protect, async (req, res) => {
     const dbCredentials = await getUserAwsCredentials(req.user._id);
     
     // Configure AWS Route53 with the raw secret key if available
-    const route53 = new AWS.Route53({
-      accessKeyId: sessionCredentials?.accessKeyId || dbCredentials.accessKeyId,
-      secretAccessKey: sessionCredentials?.secretAccessKey || dbCredentials.getDecryptedSecretKey(),
-      region: sessionCredentials?.region || dbCredentials.region || 'us-east-1'
-    });
+    const route53 = await configureRoute53(dbCredentials, sessionCredentials?.secretAccessKey);
     
     try {
       // Get hosted zones
@@ -400,6 +414,14 @@ router.get('/zones/list', protect, async (req, res) => {
       // If we get a signature error and don't have session credentials,
       // respond with a special error that tells the frontend to prompt for credentials
       if (awsError.code === 'SignatureDoesNotMatch' && !sessionCredentials) {
+        // Skip credential prompt if environment variables are available
+        if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+          return res.status(500).json({
+            message: 'AWS API error',
+            error: awsError.message
+          });
+        }
+        
         return res.status(403).json({
           message: 'AWS credential verification required',
           needCredentials: true,
