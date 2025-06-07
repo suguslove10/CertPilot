@@ -19,6 +19,28 @@ echo "Once connected, access the dashboard at: http://localhost:$LOCAL_PORT/dash
 echo "Press Ctrl+C to close the tunnel when finished."
 echo
 
+# Test SSH connection first
+echo "Testing SSH connection..."
+if ssh -q -o BatchMode=yes -o ConnectTimeout=5 $REMOTE_USER@$REMOTE_HOST exit; then
+  echo "SSH connection successful. Setting up tunnel..."
+else
+  echo "ERROR: Cannot establish SSH connection to $REMOTE_USER@$REMOTE_HOST"
+  echo 
+  echo "Troubleshooting:"
+  echo "1. Verify your SSH key is properly set up:"
+  echo "   - Check if you have an SSH key: ls -la ~/.ssh/"
+  echo "   - If you don't have a key, create one: ssh-keygen -t rsa -b 4096"
+  echo 
+  echo "2. Make sure your public key is added to the server:"
+  echo "   - Copy your key to the server: ssh-copy-id $REMOTE_USER@$REMOTE_HOST"
+  echo "   - Or manually add your public key to: ~/.ssh/authorized_keys on the server"
+  echo
+  echo "3. Alternatively, access the dashboard directly in your browser:"
+  echo "   http://$REMOTE_HOST:$REMOTE_PORT/dashboard/"
+  echo
+  exit 1
+fi
+
 # Create SSH tunnel to securely access the dashboard
 ssh -L $LOCAL_PORT:localhost:$REMOTE_PORT $REMOTE_USER@$REMOTE_HOST
 

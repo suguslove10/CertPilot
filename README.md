@@ -141,6 +141,15 @@ This project is licensed under the MIT License.
 ### Local Development
 In development mode, the Traefik dashboard is accessible at [http://localhost:8090/dashboard/](http://localhost:8090/dashboard/).
 
+### Direct Access in Production
+You can directly access the Traefik dashboard in production at:
+
+```
+http://your-server-ip:8090/dashboard/
+```
+
+For example: http://13.233.90.14:8090/dashboard/
+
 ### Production Access
 For security reasons, the Traefik dashboard in production is:
 
@@ -159,6 +168,12 @@ To securely access the dashboard from your local machine:
 # Example
 ./dashboard-access.sh ubuntu 123.45.67.89
 ```
+
+### Troubleshooting SSH Connection
+If you get "Permission denied (publickey)" error:
+- Ensure your SSH key is properly set up on your local machine
+- Make sure your public key is added to the server's authorized_keys file
+- Try connecting manually first: `ssh username@your-server-ip`
 
 Then access the dashboard at [http://localhost:8090/dashboard/](http://localhost:8090/dashboard/)
 
