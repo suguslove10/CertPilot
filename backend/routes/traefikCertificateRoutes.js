@@ -147,7 +147,7 @@ router.delete('/:id', protect, async (req, res) => {
     }
     
     // Delete the certificate record
-    await certificate.remove();
+    await Certificate.findByIdAndDelete(certificate._id);
     
     res.json({ message: 'Certificate deleted successfully' });
   } catch (error) {
