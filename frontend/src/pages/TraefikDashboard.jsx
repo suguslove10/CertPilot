@@ -1,23 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Alert, Button, Card } from 'react-bootstrap';
+import axios from 'axios';
 
 const TraefikDashboard = () => {
   const { user } = useAuth();
-  const [dashboardUrl, setDashboardUrl] = useState('http://localhost:8090/dashboard/');
+  const [dashboardUrl, setDashboardUrl] = useState('');
   const [iframeError, setIframeError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Update the dashboard URL based on the current hostname
+  // Update the dashboard URL based on the current environment
   useEffect(() => {
-    const hostname = window.location.hostname;
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      setDashboardUrl(`http://${hostname}:8090/dashboard/`);
+    // First check if we can determine the correct URL from the browser's location
+    const currentHost = window.location.host;
+    const serverIp = currentHost.split(':')[0]; // Remove port if present
+    
+    // Default dashboard URL
+    let url = `http://${serverIp}:8090/dashboard/`;
+    
+    // If we're accessing via a domain or IP, use that
+    if (serverIp !== 'localhost' && serverIp !== '127.0.0.1') {
+      setDashboardUrl(url);
+      setIsLoading(false);
+    } else {
+      // For local development, use the default
+      setDashboardUrl('http://localhost:8090/dashboard/');
+      setIsLoading(false);
     }
+    
+    // If the iframe fails to load, we'll detect that with onError handler
   }, []);
 
   // Handle iframe load error
   const handleIframeError = () => {
     setIframeError(true);
+  };
+  
+  // Handle iframe load success
+  const handleIframeLoad = () => {
+    setIframeError(false);
   };
   
   return (
@@ -35,6 +56,7 @@ const TraefikDashboard = () => {
               className="form-input rounded-md border-gray-300 flex-grow p-2"
               value={dashboardUrl}
               onChange={(e) => setDashboardUrl(e.target.value)}
+              placeholder={isLoading ? "Detecting dashboard URL..." : ""}
             />
             <button
               className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md ml-2"
@@ -50,7 +72,7 @@ const TraefikDashboard = () => {
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            The Traefik dashboard allows you to monitor routing, services, and certificates
+            The Traefik dashboard shows your routing configuration and certificates
           </p>
         </div>
         
@@ -59,9 +81,14 @@ const TraefikDashboard = () => {
             <Alert.Heading>Cannot access dashboard</Alert.Heading>
             <p>
               The dashboard cannot be embedded due to browser security restrictions or connection issues.
-              You can try accessing it directly:
+              Please check:
             </p>
-            <div className="mt-2">
+            <ul className="list-disc pl-5 mt-2 mb-2">
+              <li>The Traefik container is running properly</li>
+              <li>Port 8090 is accessible on your server</li>
+              <li>No firewalls are blocking access to the dashboard</li>
+            </ul>
+            <div className="mt-3">
               <Button 
                 variant="primary" 
                 href={dashboardUrl} 
@@ -81,6 +108,7 @@ const TraefikDashboard = () => {
             className="w-full h-[700px]"
             title="Traefik Dashboard"
             onError={handleIframeError}
+            onLoad={handleIframeLoad}
           ></iframe>
         </div>
       </div>
