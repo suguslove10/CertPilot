@@ -21,6 +21,8 @@ services:
     build: ./backend
     container_name: certpilot-backend
     restart: always
+    env_file:
+      - ./backend.env
     volumes:
       - cert-data:/etc/certpilot/certificates
       - /var/run/docker.sock:/var/run/docker.sock
