@@ -31,6 +31,12 @@ const generateRouterConfig = async (subdomain) => {
     const domain = `${subdomain.name}.${subdomain.parentDomain}`;
     const routerName = domain.replace(/\./g, '-');
     
+    // Get application port, defaulting to 8081 for frontends or 80 otherwise
+    const applicationPort = subdomain.applicationPort || 
+                           (domain.startsWith('bad.') ? 8081 : 80);
+    
+    console.log(`Generating configuration for ${domain} with target ${subdomain.targetIp}:${applicationPort}`);
+    
     // Create router configuration
     const config = {
       http: {
@@ -42,38 +48,32 @@ const generateRouterConfig = async (subdomain) => {
             tls: {
               certResolver: "letsencrypt"
             }
+          },
+          // Always add HTTP to HTTPS redirect by default
+          [`${routerName}-redirect`]: {
+            rule: `Host(\`${domain}\`)`,
+            entryPoints: ["web"],
+            middlewares: [`${routerName}-redirect`],
+            service: routerName
           }
         },
         services: {
           [routerName]: {
             loadBalancer: {
-              servers: [{ url: `http://${subdomain.targetIp}:${subdomain.applicationPort || 80}` }]
+              servers: [{ url: `http://${subdomain.targetIp}:${applicationPort}` }]
+            }
+          }
+        },
+        middlewares: {
+          [`${routerName}-redirect`]: {
+            redirectScheme: {
+              scheme: "https",
+              permanent: true
             }
           }
         }
       }
     };
-    
-    // Add HTTP to HTTPS redirect if enabled
-    if (subdomain.httpsRedirect) {
-      config.http.routers[`${routerName}-redirect`] = {
-        rule: `Host(\`${domain}\`)`,
-        entryPoints: ["web"],
-        middlewares: [`${routerName}-redirect`],
-        service: routerName
-      };
-      
-      if (!config.http.middlewares) {
-        config.http.middlewares = {};
-      }
-      
-      config.http.middlewares[`${routerName}-redirect`] = {
-        redirectScheme: {
-          scheme: "https",
-          permanent: true
-        }
-      };
-    }
     
     // Write configuration to file as YAML
     const configPath = path.join(TRAEFIK_DYNAMIC_DIR, `${routerName}.yml`);
@@ -83,6 +83,7 @@ const generateRouterConfig = async (subdomain) => {
     
     // Update subdomain with router info
     subdomain.traefikRouter = routerName;
+    subdomain.applicationPort = applicationPort;
     await subdomain.save();
     
     return configPath;
