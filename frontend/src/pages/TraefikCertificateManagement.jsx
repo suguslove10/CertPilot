@@ -21,6 +21,13 @@ const TraefikCertificateManagement = () => {
   // Certificate issuance processing state
   const [issuingCertificate, setIssuingCertificate] = useState(false);
   
+  // Certificate deletion state
+  const [deletingCertificateId, setDeletingCertificateId] = useState(null);
+  
+  // Certificate details modal state
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState(null);
+  
   // Parse query parameter for subdomainId if present
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -97,6 +104,47 @@ const TraefikCertificateManagement = () => {
     }
   };
   
+  const handleDeleteCertificate = async (certId) => {
+    if (!window.confirm("Are you sure you want to delete this certificate? This will remove the SSL configuration.")) {
+      return;
+    }
+    
+    try {
+      setDeletingCertificateId(certId);
+      
+      // Delete the certificate
+      await axios.delete(`/api/traefik-certificates/${certId}`);
+      
+      toast.success('Certificate deleted successfully');
+      
+      // Refresh certificates list
+      const updatedCerts = await axios.get('/api/traefik-certificates');
+      setCertificates(updatedCerts.data);
+    } catch (error) {
+      console.error('Error deleting certificate:', error);
+      
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Failed to delete certificate');
+      }
+    } finally {
+      setDeletingCertificateId(null);
+    }
+  };
+  
+  const handleViewDetails = async (certId) => {
+    try {
+      // Get certificate details
+      const response = await axios.get(`/api/traefik-certificates/${certId}`);
+      setSelectedCertificate(response.data);
+      setShowDetailsModal(true);
+    } catch (error) {
+      console.error('Error fetching certificate details:', error);
+      toast.error('Failed to load certificate details');
+    }
+  };
+  
   const getStatusBadgeClass = (status) => {
     switch(status) {
       case 'pending':
@@ -130,6 +178,82 @@ const TraefikCertificateManagement = () => {
   // Function to find a subdomain by ID
   const getSubdomainById = (id) => {
     return subdomains.find(subdomain => subdomain._id === id);
+  };
+  
+  // Certificate Details Modal
+  const CertificateDetailsModal = () => {
+    if (!selectedCertificate) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold">Certificate Details</h3>
+            <button
+              className="text-gray-500 hover:text-gray-700"
+              onClick={() => {
+                setShowDetailsModal(false);
+                setSelectedCertificate(null);
+              }}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Domain</h4>
+              <p className="text-base">{selectedCertificate.domain}</p>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Status</h4>
+              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(selectedCertificate.status)}`}>
+                {selectedCertificate.status}
+              </span>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Issue Date</h4>
+              <p className="text-base">{formatDate(selectedCertificate.issueDate)}</p>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Expiry Date</h4>
+              <p className="text-base">{formatDate(selectedCertificate.expiryDate)}</p>
+            </div>
+            
+            {selectedCertificate.subdomainId && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Application Port</h4>
+                <p className="text-base">{selectedCertificate.subdomainId.applicationPort || 'Not set'}</p>
+              </div>
+            )}
+            
+            {selectedCertificate.errorMessage && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 text-red-500">Error</h4>
+                <p className="text-base text-red-500">{selectedCertificate.errorMessage}</p>
+              </div>
+            )}
+            
+            <div className="pt-4 flex justify-end">
+              <button
+                className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md"
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  handleDeleteCertificate(selectedCertificate._id);
+                }}
+              >
+                Delete Certificate
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
   
   if (loading) {
@@ -223,6 +347,9 @@ const TraefikCertificateManagement = () => {
                   <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Expiry Date
                   </th>
+                  <th className="px-6 py-3 bg-gray-50 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -249,6 +376,21 @@ const TraefikCertificateManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(cert.expiryDate)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        className="text-indigo-600 hover:text-indigo-900 mr-3"
+                        onClick={() => handleViewDetails(cert._id)}
+                      >
+                        Details
+                      </button>
+                      <button
+                        className="text-red-600 hover:text-red-900"
+                        onClick={() => handleDeleteCertificate(cert._id)}
+                        disabled={deletingCertificateId === cert._id}
+                      >
+                        {deletingCertificateId === cert._id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -256,6 +398,9 @@ const TraefikCertificateManagement = () => {
           </div>
         )}
       </div>
+      
+      {/* Certificate Details Modal */}
+      {showDetailsModal && <CertificateDetailsModal />}
     </div>
   );
 };
