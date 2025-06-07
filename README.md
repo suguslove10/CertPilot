@@ -1,204 +1,291 @@
 # CertPilot
 
-CertPilot is a web application that helps you manage SSL certificates and AWS resources. It provides a user-friendly interface for managing AWS credentials and Route53 DNS records.
+<div align="center">
 
-## Features
+![CertPilot Logo](https://raw.githubusercontent.com/suguslove10/CertPilot/master/frontend/public/logo192.png)
 
-- User authentication (register, login, logout)
-- Secure AWS credentials management via web UI
-- Route53 DNS record management
-- SSL certificate setup and management
-- Modern, responsive UI with Tailwind CSS
-- Consistent component library for streamlined UX
-- **NEW: Traefik integration for automated SSL certificate management**
+**Your Complete SSL Certificate & AWS Management Solution**
 
-## UI/UX Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://docker.com)
+[![AWS](https://img.shields.io/badge/AWS-Integrated-FF9900?logo=amazon-aws)](https://aws.amazon.com)
+[![Let's Encrypt](https://img.shields.io/badge/Let's%20Encrypt-Secured-003A70?logo=letsencrypt)](https://letsencrypt.org)
 
-- Modern color scheme with comprehensive design system
-- Responsive design optimized for all device sizes
-- Interactive components with hover effects and animations
-- Accessible form elements with validation states
-- Consistent card layout system with various design options
-- Status indicators with visual cues for better UX
-- Optimized navigation with mobile responsiveness
-- Loading states and spinners for better feedback
+</div>
 
-## Technology Stack
+CertPilot is a comprehensive web application for managing SSL certificates and AWS resources with a focus on simplicity and automation. It provides a user-friendly interface for managing AWS credentials, Route53 DNS records, and SSL certificate provisioning.
 
-- **Frontend**: React, Tailwind CSS, React Router, Axios, React Hook Form
-- **Backend**: Node.js, Express, MongoDB
-- **Authentication**: JWT (JSON Web Tokens)
-- **AWS Integration**: AWS SDK for JavaScript
-- **Reverse Proxy**: Traefik for SSL certificate management and routing
+## 📋 Table of Contents
 
-## Getting Started
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Technology Stack](#-technology-stack)
+- [Getting Started](#-getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation Options](#installation-options)
+  - [Traefik SSL Management](#traefik-ssl-management)
+  - [Development Setup](#development-setup)
+- [Usage Guide](#-usage-guide)
+  - [Setting Up AWS Credentials](#setting-up-aws-credentials)
+  - [Managing Subdomains](#managing-subdomains)
+  - [Certificate Management](#certificate-management)
+- [Troubleshooting](#-troubleshooting)
+- [Security Considerations](#-security-considerations)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+## 🚀 Features
+
+### Core Functionality
+- **User Authentication** - Secure register, login, and session management
+- **AWS Integration** - Secure credential management with encryption
+- **Route53 DNS Management** - Create and manage DNS records
+- **SSL Automation** - Automated certificate provisioning and renewal
+- **Multiple Deployment Options** - Standard or Traefik-based deployment
+
+### UI/UX Features
+- **Modern Interface** - Clean design with Tailwind CSS
+- **Responsive Design** - Optimized for all device sizes
+- **Interactive Components** - Rich user experience with feedback
+- **Accessibility** - WCAG-compliant form elements and navigation
+- **Real-time Status Updates** - Visual indicators for all operations
+
+### Advanced Features
+- **Traefik Integration** - Centralized SSL management with edge routing
+- **Container Support** - Direct certificate installation to Docker containers
+- **Auto-renewal** - Automatic certificate renewal management
+- **Port Independence** - Applications can run on any internal port
+
+## 🏗 Architecture
+
+CertPilot offers two deployment architectures:
+
+### Standard Architecture
+```
+User → Frontend (React) → Backend (Node.js) → AWS Route53
+                                            → Let's Encrypt
+                                            → MongoDB
+```
+
+### Traefik-based Architecture
+```
+User → Traefik Proxy → Frontend (React) → Backend (Node.js) → AWS Route53
+                     ↓                                      → MongoDB
+             Let's Encrypt ACME
+```
+
+## 💻 Technology Stack
+
+### Frontend
+- **React** - Component-based UI library
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Router** - Client-side routing
+- **Axios** - HTTP client for API requests
+- **React Hook Form** - Form state management
+
+### Backend
+- **Node.js** - JavaScript runtime
+- **Express** - Web framework
+- **MongoDB** - NoSQL database
+- **JWT** - Authentication tokens
+- **AWS SDK** - AWS service integration
+
+### Infrastructure
+- **Docker** - Containerization
+- **Docker Compose** - Multi-container orchestration
+- **Traefik** - Edge router and reverse proxy
+- **Let's Encrypt** - Certificate authority
+
+## 🚦 Getting Started
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- AWS account with appropriate permissions
+- **Docker and Docker Compose** - [Installation Guide](https://docs.docker.com/get-docker/)
+- **AWS Account** - With Route53 access
+- **Domain Name** - Managed through Route53
+- **Git** - For cloning the repository
 
-### Running with Docker (Recommended)
+### Installation Options
 
-#### Production
+#### Option 1: Standard Deployment
 
 1. Clone the repository
-```
-git clone https://github.com/yourusername/certpilot.git
+```bash
+git clone https://github.com/suguslove10/certpilot.git
 cd certpilot
 ```
 
-2. Start the application with Docker Compose
-```
+2. Start the application
+```bash
 docker-compose up -d
 ```
 
-3. Access the application at `http://localhost`
+3. Access the application
+```
+Frontend: http://localhost
+API: http://localhost:5000/api
+```
 
-#### Development
+#### Option 2: Traefik SSL Management
 
 1. Clone the repository
-```
-git clone https://github.com/yourusername/certpilot.git
-cd certpilot
-```
-
-2. Start the development environment
-```
-docker-compose -f docker-compose.dev.yml up -d
-```
-
-3. Access the application at `http://localhost:3000`
-   - Backend API is available at `http://localhost:5001/api`
-   - MongoDB is available at `mongodb://localhost:27017/certpilot`
-
-### Running with Traefik (Enhanced SSL Management)
-
-CertPilot now includes a Traefik-based setup for improved SSL certificate management:
-
-1. Clone the repository
-```
-git clone https://github.com/yourusername/certpilot.git
+```bash
+git clone https://github.com/suguslove10/certpilot.git
 cd certpilot
 ```
 
 2. Start the application with Traefik
-```
+```bash
 ./start-traefik.sh
 ```
 
-3. Add the following entries to your hosts file to use the local domains:
-```
+3. Configure local domains (development only)
+```bash
+# Add to your hosts file (/etc/hosts on Unix/Linux/Mac, C:\Windows\System32\drivers\etc\hosts on Windows)
 127.0.0.1 certpilot.local api.certpilot.local
 ```
 
-4. Access the application:
-   - Frontend: `http://certpilot.local`
-   - API: `http://api.certpilot.local`
-   - Traefik Dashboard: `http://localhost:8080/dashboard/`
+4. Access the application
+```
+Frontend: http://certpilot.local
+API: http://api.certpilot.local
+Traefik Dashboard: http://localhost:8090/dashboard/
+```
 
-#### Benefits of the Traefik Setup
-
-- Centralized SSL certificate management through Let's Encrypt
-- Automatic certificate renewal
-- Internal port independence - applications can use any internal port
-- HTTP to HTTPS redirection
-- Edge routing based on domain names
-
-### Manual Installation (Without Docker)
-
-#### Prerequisites
-- Node.js (v14+)
-- MongoDB
-- npm or yarn
+### Development Setup
 
 1. Clone the repository
-```
-git clone https://github.com/yourusername/certpilot.git
+```bash
+git clone https://github.com/suguslove10/certpilot.git
 cd certpilot
 ```
 
-2. Install backend dependencies
-```
-cd backend
-npm install
-```
-
-3. Install frontend dependencies
-```
-cd ../frontend
-npm install
+2. Start the development environment
+```bash
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
-4. Create a `.env` file in the backend directory with the following variables:
+3. Access the application
 ```
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/certpilot
-JWT_SECRET=your_jwt_secret_here
-```
-
-5. Start the backend server
-```
-cd backend
-npm run dev
+Frontend: http://localhost:3000
+API: http://localhost:5001/api
+MongoDB: mongodb://localhost:27017/certpilot
 ```
 
-6. Start the frontend development server
+## 📘 Usage Guide
+
+### Setting Up AWS Credentials
+
+1. Sign in to your AWS account and create an IAM user with the following permissions:
+   - `route53:ListHostedZones`
+   - `route53:GetHostedZone`
+   - `route53:ChangeResourceRecordSets`
+   - `route53:ListResourceRecordSets`
+
+2. Generate access keys for this IAM user
+
+3. In CertPilot, navigate to "AWS Credentials" and add your credentials:
+   - Access Key ID
+   - Secret Access Key
+   - AWS Region (e.g., us-east-1)
+
+### Managing Subdomains
+
+1. Navigate to "Subdomains" in the CertPilot UI
+
+2. Click "Create New Subdomain" and provide:
+   - Subdomain name (e.g., "app" for app.example.com)
+   - Parent domain (e.g., example.com)
+   - Target IP address
+   - Record type (usually A)
+   - TTL (Time To Live)
+
+3. Click "Create Subdomain" and wait for DNS propagation
+
+### Certificate Management
+
+#### Standard Method
+
+1. Navigate to "SSL Certificates" in the CertPilot UI
+
+2. Select the subdomain you want to secure
+
+3. Select target containers for certificate installation (optional)
+
+4. Click "Issue Certificate" and wait for the process to complete
+
+#### Traefik Method
+
+1. Navigate to "Traefik SSL" in the CertPilot UI
+
+2. Select the subdomain you want to secure
+
+3. Specify the internal application port
+
+4. Click "Issue Certificate with Traefik" and wait for the configuration
+
+## 🔧 Troubleshooting
+
+### Common Issues and Solutions
+
+#### Docker Containers Not Starting
+
+```bash
+# Check container status
+docker-compose ps
+
+# View container logs
+docker-compose logs -f [service_name]
 ```
-cd frontend
-npm run dev
-```
 
-7. Access the application at `http://localhost:3000`
+#### Certificate Issuance Failures
 
-## UI Components
+1. **DNS Propagation Issues**
+   - Verify your domain's DNS has propagated with `dig +short yourdomain.com`
+   - Wait 15-30 minutes for DNS changes to propagate globally
 
-CertPilot includes a comprehensive set of reusable UI components:
+2. **AWS Credentials Problems**
+   - Verify your AWS credentials have the correct permissions
+   - Try re-entering your AWS credentials in the UI
 
-- `Button` - Customizable button with multiple variants and states
-- `Card` - Flexible card component with various styling options
-- `Input` - Form input with validation states and icons
-- `StatusBadge` - Visual status indicators
-- `AlertBanner` - Notification banners for user feedback
-- `Modal` - Dialog component with animations
-- `Spinner` - Loading indicators
-- `Navbar` - Responsive navigation with mobile support
+3. **Let's Encrypt Rate Limits**
+   - Check if you've hit Let's Encrypt rate limits (5 failed validations per hour)
+   - Wait an hour before trying again
 
-## AWS Permissions
+#### Traefik-specific Issues
 
-The application requires AWS credentials with the following permissions:
+1. **Port Conflicts**
+   - Ensure ports 80, 443, and 8090 are available on your host
+   - Check with `netstat -tuln | grep -E '80|443|8090'`
 
-- Route53 access for DNS record management
-- Ability to list and modify hosted zones
+2. **Configuration Problems**
+   - Check Traefik logs: `docker logs certpilot-traefik`
+   - Verify dynamic configuration: `docker exec certpilot-backend ls -la /etc/traefik/dynamic/`
 
-For security best practices, it's recommended to create a dedicated IAM user with only the necessary permissions.
+## 🔒 Security Considerations
 
-## Security Considerations
+- **AWS Credentials**: Stored with AES-256 encryption in the database
+- **JWT Tokens**: Used for secure API access with short expiration times
+- **HTTPS**: All production traffic should use HTTPS
+- **Container Isolation**: Services run in isolated containers
+- **Least Privilege**: Always use IAM users with minimal required permissions
 
-- AWS credentials are encrypted before being stored in the database
-- Authentication is required for all sensitive operations
-- JWT tokens are used for secure API access
+## 🤝 Contributing
 
-## SSL Certificate Management
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-CertPilot offers two approaches for SSL certificate management:
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### 1. Direct Certificate Installation (Original Method)
+## 📄 License
 
-- Uses Let's Encrypt with DNS-01 challenges via AWS Route53
-- Certificates are installed directly into containers (specifically targeting NGINX)
-- Requires port 443 to be exposed on the application containers
-- SSL termination happens inside each application container
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-### 2. Traefik-based Certificate Management (New Method)
+---
 
-- Uses Traefik as a reverse proxy and edge router
-- Certificates are managed centrally by Traefik
-- Applications can run on any internal port
-- Traefik handles SSL termination and routes traffic to the appropriate container
-- HTTP to HTTPS redirection is managed automatically
-- No need to expose port 443 on application containers
-
-## License
-
-This project is licensed under the MIT License. 
+<div align="center">
+Made with ❤️ by the CertPilot Team
+</div> 
