@@ -6,6 +6,7 @@ import axios from 'axios';
 const TraefikDashboard = () => {
   const { user } = useAuth();
   const [dashboardUrl, setDashboardUrl] = useState('');
+  const [directUrl, setDirectUrl] = useState('');
   const [iframeError, setIframeError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -15,20 +16,20 @@ const TraefikDashboard = () => {
     const currentHost = window.location.host;
     const serverIp = currentHost.split(':')[0]; // Remove port if present
     
-    // Default dashboard URL
-    let url = `http://${serverIp}:8090/dashboard/`;
+    // Try these possible dashboard URL formats - Traefik has changed its path format in different versions
+    let baseUrl = `http://${serverIp}:8090`;
+    let possibleUrls = [
+      `${baseUrl}/dashboard/`,      // Most common format
+      `${baseUrl}/`,                // Root path
+      `${baseUrl}/dashboard`,       // Without trailing slash
+      `${baseUrl}/#/`               // Hash-based routing (v2.x)
+    ];
     
-    // If we're accessing via a domain or IP, use that
-    if (serverIp !== 'localhost' && serverIp !== '127.0.0.1') {
-      setDashboardUrl(url);
-      setIsLoading(false);
-    } else {
-      // For local development, use the default
-      setDashboardUrl('http://localhost:8090/dashboard/');
-      setIsLoading(false);
-    }
-    
-    // If the iframe fails to load, we'll detect that with onError handler
+    // Set the default URL to try first
+    setDashboardUrl(possibleUrls[0]);
+    // Store the direct access URL for the "Open in New Tab" button
+    setDirectUrl(baseUrl);
+    setIsLoading(false);
   }, []);
 
   // Handle iframe load error
@@ -38,6 +39,25 @@ const TraefikDashboard = () => {
   
   // Handle iframe load success
   const handleIframeLoad = () => {
+    setIframeError(false);
+  };
+  
+  // Try a different URL format
+  const tryAlternateUrl = () => {
+    // Cycle through different possible URL formats
+    if (dashboardUrl.endsWith('/dashboard/')) {
+      setDashboardUrl(dashboardUrl.replace('/dashboard/', '/'));
+    } else if (dashboardUrl.endsWith('/')) {
+      setDashboardUrl(dashboardUrl.replace('/', '/dashboard'));
+    } else if (dashboardUrl.endsWith('/dashboard')) {
+      setDashboardUrl(dashboardUrl.replace('/dashboard', '/#/'));
+    } else {
+      // If we've tried all formats, go back to the first one
+      const baseUrl = dashboardUrl.split('/#/')[0];
+      setDashboardUrl(`${baseUrl}/dashboard/`);
+    }
+    
+    // Reset error state to try loading with new URL
     setIframeError(false);
   };
   
@@ -80,22 +100,27 @@ const TraefikDashboard = () => {
           <Alert variant="warning" className="mb-4">
             <Alert.Heading>Cannot access dashboard</Alert.Heading>
             <p>
-              The dashboard cannot be embedded due to browser security restrictions or connection issues.
-              Please check:
+              The dashboard cannot be loaded. This could be due to:
             </p>
             <ul className="list-disc pl-5 mt-2 mb-2">
-              <li>The Traefik container is running properly</li>
-              <li>Port 8090 is accessible on your server</li>
-              <li>No firewalls are blocking access to the dashboard</li>
+              <li>The Traefik container might not be running properly</li>
+              <li>Port 8090 might be blocked or not properly mapped</li>
+              <li>The dashboard URL format might be different</li>
             </ul>
-            <div className="mt-3">
+            <div className="mt-3 d-flex gap-2">
               <Button 
                 variant="primary" 
-                href={dashboardUrl} 
+                href={directUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
               >
-                Open Dashboard in New Tab
+                Open Direct URL in New Tab
+              </Button>
+              <Button 
+                variant="secondary" 
+                onClick={tryAlternateUrl}
+              >
+                Try Different URL Format
               </Button>
             </div>
           </Alert>
@@ -114,22 +139,19 @@ const TraefikDashboard = () => {
       </div>
       
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold mb-4">About Traefik</h3>
-        <p className="mb-4">
-          Traefik is an open-source Edge Router that makes publishing your services a fun and easy experience. 
-          It receives requests on behalf of your system and finds out which components are responsible for handling them.
+        <h3 className="text-xl font-semibold mb-4">Troubleshooting Tips</h3>
+        <p className="mb-3">
+          If you're having trouble accessing the Traefik dashboard:
         </p>
-        <p className="mb-4">
-          CertPilot uses Traefik to:
-        </p>
-        <ul className="list-disc pl-8 mb-4">
-          <li>Automatically route traffic to your services based on domain names</li>
-          <li>Manage SSL certificates through Let's Encrypt</li>
-          <li>Handle HTTPS redirection</li>
-          <li>Provide a central point for monitoring and management</li>
-        </ul>
+        <ol className="list-decimal pl-5 mb-4 space-y-2">
+          <li>Check if the Traefik container is running with <code>docker ps</code></li>
+          <li>Inspect the Traefik logs with <code>docker logs certpilot-traefik</code></li>
+          <li>Try accessing the dashboard directly at <a href={directUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{directUrl}</a></li>
+          <li>Make sure no other service is using port 9000 on the server</li>
+          <li>Restart the Traefik container: <code>docker-compose restart traefik</code></li>
+        </ol>
         <p>
-          The dashboard above provides a visual interface to monitor Traefik's routes, services, and middlewares.
+          The Traefik dashboard is crucial for monitoring your certificate status and routing configurations.
         </p>
       </div>
     </div>

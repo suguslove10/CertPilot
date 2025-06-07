@@ -6,7 +6,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8090:9000"  # Update port mapping for dashboard
+      - "8090:9000"  # Make dashboard accessible to end users
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml
@@ -16,15 +16,9 @@ services:
       - DOMAIN=${DOMAIN:-certpilot.local}
     networks:
       - certpilot-network
+    # Remove any potential conflicting labels
     labels:
       - "traefik.enable=true"
-      # Dashboard access through a subdomain with authentication
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.${DOMAIN:-certpilot.local}`)"
-      - "traefik.http.routers.traefik-dashboard.service=api@internal"
-      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
-      - "traefik.http.routers.traefik-dashboard.middlewares=traefik-auth"
-      # Middleware for basic authentication
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:$$apr1$$ruca84Hq$$mbjdMZBAG.KWn7vfN/SNK/"
 
   backend:
     build: ./backend
