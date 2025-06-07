@@ -42,11 +42,13 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=5000"
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile.prod
     container_name: certpilot-frontend
     restart: always
     ports:
-      - "8081:80"  # Direct access on port 8081 for internal users
+      - "8081:80"  # Keep mapping to port 80
     depends_on:
       - backend
     networks:
