@@ -94,6 +94,24 @@ User → Traefik Proxy → Frontend (React) → Backend (Node.js) → AWS Route5
 
 ## 🚦 Quick Start
 
+### One-Click Installation (Recommended)
+
+The easiest way to install CertPilot is using our one-click installation script:
+
+```bash
+# Download and run the installer
+curl -sSL https://raw.githubusercontent.com/suguslove10/CertPilot/master/install.sh | bash
+```
+
+Or if you've already cloned the repository:
+
+```bash
+# Run the installer
+./install.sh
+```
+
+The script will guide you through the installation process with simple prompts.
+
 ### Prerequisites
 
 - **Docker and Docker Compose** - [Installation Guide](https://docs.docker.com/get-docker/)
