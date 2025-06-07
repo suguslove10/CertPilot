@@ -31,18 +31,22 @@ const getUserAwsCredentials = async (userId) => {
 const configureRoute53 = async (credentials, rawSecretKey) => {
   // First try to use environment variables
   if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    console.log('Using AWS credentials from environment variables');
     return new AWS.Route53({
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      credentials: new AWS.Credentials({
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      }),
       region: process.env.AWS_REGION || credentials.region || 'us-east-1'
     });
   }
   
   // Fall back to user credentials if environment variables not available
   // Use the raw secret key (if provided) or the stored encrypted one
+  const secretKey = rawSecretKey || credentials.getDecryptedSecretKey();
   return new AWS.Route53({
     accessKeyId: credentials.accessKeyId,
-    secretAccessKey: rawSecretKey || credentials.secretAccessKey,
+    secretAccessKey: secretKey,
     region: credentials.region
   });
 };

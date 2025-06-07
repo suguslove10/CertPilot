@@ -9,10 +9,12 @@ const verifyAwsCredentials = async () => {
     if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
       console.log('Verifying AWS credentials from environment variables...');
       
-      // Configure AWS with environment variables
+      // Configure AWS with environment variables using the Credentials object
       const route53 = new AWS.Route53({
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        credentials: new AWS.Credentials({
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+        }),
         region: process.env.AWS_REGION || 'us-east-1'
       });
       
