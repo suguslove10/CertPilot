@@ -28,94 +28,77 @@ const verifyAwsCredentials = async (accessKeyId, secretAccessKey, region) => {
 // @desc    Add or update AWS credentials
 // @access  Private
 router.post('/', protect, async (req, res) => {
-  const { accessKeyId, secretAccessKey, region } = req.body;
-  console.log('Received request to save AWS credentials');
-
-  // Validate required fields
-  if (!accessKeyId || !secretAccessKey) {
-    console.log('Missing required fields');
-    return res.status(400).json({ message: 'Please provide all required fields' });
-  }
-
   try {
-    // Verify the credentials with AWS
-    console.log('Verifying AWS credentials...');
-    try {
-      await verifyAwsCredentials(accessKeyId, secretAccessKey, region || 'us-east-1');
-      console.log('AWS credentials verified successfully');
-    } catch (awsError) {
-      console.error('AWS verification error:', awsError);
+    // Check if system-level credentials are already set
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
       return res.status(400).json({ 
-        message: 'Invalid AWS credentials', 
-        error: awsError.message 
+        message: 'System-level AWS credentials are already configured. To modify them, edit the backend.env file directly.' 
       });
     }
 
-    // Check if credentials already exist for this user
-    console.log('Checking for existing credentials...');
-    const existingCredentials = await AwsCredentials.findOne({ userId: req.user._id });
-
-    if (existingCredentials) {
-      console.log('Existing credentials found, updating...');
-      try {
-        // For existing credentials, first delete the old one to avoid encryption issues
-        console.log('Deleting old credentials');
-        const deleteResult = await AwsCredentials.deleteOne({ userId: req.user._id });
-        console.log('Delete result:', deleteResult);
-        
-        // Create a new credential entry
-        console.log('Creating new credentials');
-        const newCredentials = await AwsCredentials.create({
-          userId: req.user._id,
-          accessKeyId,
-          secretAccessKey,
-          region: region || 'us-east-1'
-        });
-        console.log('Credentials created successfully:', newCredentials._id);
-
-        return res.json({ 
-          message: 'AWS credentials updated successfully',
-          region: region || 'us-east-1'
-        });
-      } catch (updateError) {
-        console.error('Error updating credentials - full error:', updateError);
-        console.error('Error message:', updateError.message);
-        console.error('Error stack:', updateError.stack);
-        return res.status(500).json({ 
-          message: 'Failed to update credentials',
-          error: updateError.message
-        });
-      }
+    const { accessKeyId, secretAccessKey, region } = req.body;
+    
+    if (!accessKeyId || !secretAccessKey || !region) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    // Verify credentials before saving
+    const tempAWS = new AWS.Config({
+      accessKeyId,
+      secretAccessKey,
+      region
+    });
+    
+    const route53 = new AWS.Route53({ credentials: tempAWS.credentials, region });
+    
+    try {
+      await route53.listHostedZones().promise();
+      // If we get here, it means the credentials are valid
+    } catch (err) {
+      console.error('AWS credential verification failed:', err);
+      return res.status(400).json({ error: 'Invalid AWS credentials. Please check and try again.' });
+    }
+    
+    // Look for existing credentials for this user
+    let credentials = await AwsCredentials.findOne({ userId: req.user._id });
+    
+    if (credentials) {
+      // Update existing credentials
+      credentials.accessKeyId = accessKeyId;
+      credentials.secretAccessKey = secretAccessKey;
+      credentials.region = region;
+      await credentials.save();
+      
+      // Update AWS SDK configuration
+      AWS.config.update({
+        accessKeyId,
+        secretAccessKey,
+        region
+      });
+      
+      res.json({ message: 'AWS credentials updated successfully' });
     } else {
       // Create new credentials
-      console.log('No existing credentials, creating new one');
-      try {
-        const credentials = await AwsCredentials.create({
-          userId: req.user._id,
-          accessKeyId,
-          secretAccessKey,
-          region: region || 'us-east-1'
-        });
-        console.log('New credentials created successfully:', credentials._id);
-
-        return res.status(201).json({ 
-          message: 'AWS credentials added successfully',
-          region: credentials.region
-        });
-      } catch (createError) {
-        console.error('Error creating new credentials:', createError);
-        console.error('Error stack:', createError.stack);
-        return res.status(500).json({ 
-          message: 'Failed to create credentials',
-          error: createError.message
-        });
-      }
+      credentials = new AwsCredentials({
+        userId: req.user._id,
+        accessKeyId,
+        secretAccessKey,
+        region
+      });
+      await credentials.save();
+      
+      // Update AWS SDK configuration
+      AWS.config.update({
+        accessKeyId,
+        secretAccessKey,
+        region
+      });
+      
+      res.status(201).json({ message: 'AWS credentials saved successfully' });
     }
   } catch (error) {
-    console.error('General error in AWS credentials route:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Error saving AWS credentials:', error);
+    res.status(500).json({ message: 'Error saving AWS credentials' });
   }
 });
 
@@ -124,22 +107,35 @@ router.post('/', protect, async (req, res) => {
 // @access  Private
 router.get('/', protect, async (req, res) => {
   try {
-    const credentials = await AwsCredentials.findOne({ userId: req.user._id });
+    // First check if environment variables are set
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+      console.log('Returning system-level AWS credentials from environment variables');
+      return res.json({
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: "••••••••••••••••••••••", // Masked for security
+        region: process.env.AWS_REGION || 'us-east-1',
+        updatedAt: new Date(),
+        isSystemLevel: true
+      });
+    }
 
+    // If no environment variables, check the database
+    const credentials = await AwsCredentials.findOne({ userId: req.user._id });
+    
     if (!credentials) {
       return res.status(404).json({ message: 'AWS credentials not found' });
     }
-
-    // Don't return the actual secret key, just a masked version
+    
     res.json({
       accessKeyId: credentials.accessKeyId,
-      secretAccessKey: '••••••••••••••••••••••', // Masked for security
+      secretAccessKey: "••••••••••••••••••••••", // Masked for security
       region: credentials.region,
-      updatedAt: credentials.updatedAt
+      updatedAt: credentials.updatedAt,
+      isSystemLevel: false
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching AWS credentials:', error);
+    res.status(500).json({ message: 'Error retrieving AWS credentials' });
   }
 });
 
@@ -148,16 +144,23 @@ router.get('/', protect, async (req, res) => {
 // @access  Private
 router.delete('/', protect, async (req, res) => {
   try {
-    const result = await AwsCredentials.deleteOne({ userId: req.user._id });
+    // Check if system-level credentials are set
+    if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+      return res.status(400).json({ 
+        message: 'Cannot delete system-level AWS credentials. To modify them, edit the backend.env file directly.' 
+      });
+    }
 
+    const result = await AwsCredentials.deleteOne({ userId: req.user._id });
+    
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'AWS credentials not found' });
     }
-
-    res.json({ message: 'AWS credentials removed successfully' });
+    
+    res.json({ message: 'AWS credentials deleted successfully' });
   } catch (error) {
     console.error('Error deleting AWS credentials:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Error deleting AWS credentials' });
   }
 });
 
@@ -165,28 +168,36 @@ router.delete('/', protect, async (req, res) => {
 // @desc    Verify AWS credentials without saving
 // @access  Private
 router.post('/verify', protect, async (req, res) => {
-  const { accessKeyId, secretAccessKey, region } = req.body;
-
-  // Validate required fields
-  if (!accessKeyId || !secretAccessKey) {
-    return res.status(400).json({ message: 'Please provide all required fields' });
-  }
-
   try {
-    // Verify the credentials with AWS
+    const { accessKeyId, secretAccessKey, region } = req.body;
+    
+    if (!accessKeyId || !secretAccessKey || !region) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    // Set up temporary AWS config
+    const tempAWS = new AWS.Config({
+      accessKeyId,
+      secretAccessKey,
+      region
+    });
+    
+    const route53 = new AWS.Route53({ credentials: tempAWS.credentials, region });
+    
     try {
-      await verifyAwsCredentials(accessKeyId, secretAccessKey, region || 'us-east-1');
-      res.json({ valid: true, message: 'AWS credentials are valid' });
-    } catch (awsError) {
+      await route53.listHostedZones().promise();
+      res.json({ message: 'AWS credentials successfully verified', valid: true });
+    } catch (err) {
+      console.error('Verification failed:', err);
       res.status(400).json({ 
-        valid: false, 
-        message: 'Invalid AWS credentials', 
-        error: awsError.message 
+        message: 'AWS credentials verification failed', 
+        valid: false,
+        error: err.code || err.message 
       });
     }
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error verifying credentials:', error);
+    res.status(500).json({ message: 'Error verifying AWS credentials' });
   }
 });
 

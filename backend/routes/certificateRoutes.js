@@ -378,6 +378,19 @@ server {
   }
 };
 
+// @route   GET /api/certificates/count
+// @desc    Get count of certificates for a user
+// @access  Private
+router.get('/count', protect, async (req, res) => {
+  try {
+    const count = await Certificate.countDocuments({ userId: req.user._id });
+    res.json({ count });
+  } catch (error) {
+    console.error('Error counting certificates:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   POST /api/certificates
 // @desc    Issue a new SSL certificate for a subdomain
 // @access  Private

@@ -234,6 +234,21 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/subdomains/count
+// @desc    Get count of subdomains for a user
+// @access  Private
+router.get('/count', protect, async (req, res) => {
+  try {
+    console.log(`Counting subdomains for user ID: ${req.user._id}`);
+    const count = await Subdomain.countDocuments({ userId: req.user._id });
+    console.log(`Found ${count} subdomains for user ID: ${req.user._id}`);
+    res.json({ count });
+  } catch (error) {
+    console.error('Error counting subdomains:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // @route   GET /api/subdomains/:id
 // @desc    Get a specific subdomain
 // @access  Private
@@ -577,6 +592,46 @@ router.post('/verify-credentials', protect, async (req, res) => {
       message: 'Invalid AWS credentials',
       error: err.message
     });
+  }
+});
+
+// @route   GET /api/subdomains/debug
+// @desc    Debug endpoint to see all subdomains in the database regardless of user
+// @access  Private (but shows all data for debugging)
+router.get('/debug', protect, async (req, res) => {
+  try {
+    console.log('Debug request for subdomains');
+    // Find all subdomains
+    const allSubdomains = await Subdomain.find({});
+    console.log(`Found ${allSubdomains.length} total subdomains in database`);
+    
+    // Log details about each subdomain
+    allSubdomains.forEach((subdomain, index) => {
+      console.log(`Subdomain ${index + 1}:`);
+      console.log(`- ID: ${subdomain._id}`);
+      console.log(`- Name: ${subdomain.name}`);
+      console.log(`- Parent Domain: ${subdomain.parentDomain}`);
+      console.log(`- User ID: ${subdomain.userId}`);
+    });
+    
+    // For the current user
+    const userSubdomains = await Subdomain.find({ userId: req.user._id });
+    console.log(`Found ${userSubdomains.length} subdomains for user ID: ${req.user._id}`);
+    
+    return res.json({
+      totalCount: allSubdomains.length,
+      userCount: userSubdomains.length,
+      allSubdomains: allSubdomains.map(s => ({
+        id: s._id,
+        name: s.name,
+        parentDomain: s.parentDomain,
+        userId: s.userId
+      })),
+      currentUser: req.user._id
+    });
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 

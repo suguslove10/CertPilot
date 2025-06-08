@@ -5,6 +5,19 @@ const Subdomain = require('../models/Subdomain');
 const { protect } = require('../middleware/authMiddleware');
 const traefikManager = require('../services/traefikManager');
 
+// @route   GET /api/traefik-certificates/count
+// @desc    Get count of traefik certificates for a user
+// @access  Private
+router.get('/count', protect, async (req, res) => {
+  try {
+    const count = await TraefikCertificate.countDocuments({ userId: req.user._id });
+    res.json({ count });
+  } catch (error) {
+    console.error('Error counting traefik certificates:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/traefik-certificates
 // @desc    Get all certificates for a user
 // @access  Private

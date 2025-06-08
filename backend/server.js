@@ -44,8 +44,10 @@ const app = express();
 
 // Set up CORS with more permissive configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5001'],
-  credentials: true
+  origin: ['http://localhost:3000', 'http://localhost:5001', 'http://localhost:8081', 'http://localhost'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Enable body parsing
@@ -56,7 +58,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'certpilot-session-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 3600000 } // 1 hour
+  cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 3600000, sameSite: 'lax' } // 1 hour
 }));
 
 // Serve ACME challenge files for Let's Encrypt with logging
