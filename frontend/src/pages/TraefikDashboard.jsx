@@ -16,12 +16,12 @@ const TraefikDashboard = () => {
     const currentHost = window.location.host;
     const serverIp = currentHost.split(':')[0]; // Remove port if present
     
-    // Set direct access URL (this is what should work based on logs)
-    const baseUrl = `http://${serverIp}:8080`;
+    // Set direct access URL with hash-based routing
+    const baseUrl = `http://${serverIp}:8090`;
     setDirectUrl(baseUrl);
     
-    // Try the actual URL where Traefik serves its dashboard (based on logs)
-    setDashboardUrl(`${baseUrl}/dashboard/`);
+    // Use the correct hash-based URL format that works
+    setDashboardUrl(`${baseUrl}/dashboard/#/`);
     setIsLoading(false);
   }, []);
 
@@ -38,22 +38,19 @@ const TraefikDashboard = () => {
   // Try a different URL format
   const tryAlternateUrl = () => {
     // Cycle through different possible URL formats
-    if (dashboardUrl.includes(':8080/dashboard/')) {
-      // Try the dashboard on port 9000
-      setDashboardUrl(dashboardUrl.replace(':8080/dashboard/', ':8090/dashboard/'));
-    } else if (dashboardUrl.includes(':8090/dashboard/')) {
+    if (dashboardUrl.includes('/dashboard/#/')) {
+      // Try without hash
+      setDashboardUrl(dashboardUrl.replace('/dashboard/#/', '/dashboard/'));
+    } else if (dashboardUrl.includes('/dashboard/')) {
       // Try API path
-      setDashboardUrl(dashboardUrl.replace(':8090/dashboard/', ':8080/api/'));
-    } else if (dashboardUrl.includes(':8080/api/')) {
-      // Try root path with port 8080
-      setDashboardUrl(dashboardUrl.replace(':8080/api/', ':8080/'));
-    } else if (dashboardUrl.includes(':8080/')) {
-      // Try root path with port 9000
-      setDashboardUrl(dashboardUrl.replace(':8080/', ':9000/'));
+      setDashboardUrl(dashboardUrl.replace('/dashboard/', '/api/'));
+    } else if (dashboardUrl.includes('/api/')) {
+      // Try root path
+      setDashboardUrl(dashboardUrl.replace('/api/', '/'));
     } else {
-      // If we've tried all formats, go back to the first one
+      // Go back to the first one (hash-based) which we know works
       const serverIp = dashboardUrl.split(':')[0].replace('http://', '');
-      setDashboardUrl(`http://${serverIp}:8080/dashboard/`);
+      setDashboardUrl(`http://${serverIp}:8090/dashboard/#/`);
     }
     
     // Reset error state to try loading with new URL
@@ -99,20 +96,20 @@ const TraefikDashboard = () => {
           <Alert variant="warning" className="mb-4">
             <Alert.Heading>Cannot access dashboard</Alert.Heading>
             <p>
-              The dashboard cannot be loaded. Based on Traefik logs, try accessing directly:
+              The dashboard cannot be loaded. Try accessing directly:
             </p>
             <ul className="list-disc pl-5 mt-2 mb-2">
-              <li>The dashboard might be served on port 8080 (Traefik internal port)</li>
-              <li>The correct path might be <code>/api/</code> or <code>/</code> instead of <code>/dashboard/</code></li>
+              <li>The correct URL format uses hash-based routing: <code>/dashboard/#/</code></li>
+              <li>Direct link: <a href={`${directUrl}/dashboard/#/`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{directUrl}/dashboard/#/</a></li>
             </ul>
             <div className="mt-3 d-flex gap-2">
               <Button 
                 variant="primary" 
-                href={`${directUrl}/dashboard/`} 
+                href={`${directUrl}/dashboard/#/`} 
                 target="_blank" 
                 rel="noopener noreferrer"
               >
-                Try Dashboard at Port 8080
+                Open Dashboard in New Tab
               </Button>
               <Button 
                 variant="secondary" 
@@ -137,27 +134,19 @@ const TraefikDashboard = () => {
       </div>
       
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-xl font-semibold mb-4">Traefik Entrypoints</h3>
+        <h3 className="text-xl font-semibold mb-4">Traefik Dashboard Notes</h3>
         <p className="mb-3">
-          Based on the logs, Traefik has the following configured entrypoints:
+          Important information about the Traefik dashboard:
         </p>
         <ul className="list-disc pl-5 mb-4 space-y-2">
-          <li><strong>web</strong>: Port 80 (HTTP)</li>
-          <li><strong>websecure</strong>: Port 443 (HTTPS)</li>
-          <li><strong>dashboard</strong>: Port 9000 (mapped to 8090)</li>
-          <li><strong>traefik</strong>: Port 8080 (internal, used for API/dashboard)</li>
+          <li>The dashboard uses hash-based routing (URLs with <code>#</code> in them)</li>
+          <li>The correct URL format is: <code>http://your-server-ip:8090/dashboard/#/</code></li>
+          <li>If the dashboard doesn't load in the iframe above, try opening it directly in a new tab</li>
+          <li>Dashboard credentials are not required since we're using insecure mode for development</li>
         </ul>
-        <p className="mb-3">
-          The dashboard is likely being served on the <code>traefik</code> entrypoint (port 8080) rather than the <code>dashboard</code> entrypoint (port 9000).
-        </p>
         <p>
-          Try accessing the dashboard at:
+          The Traefik dashboard provides valuable insights into your routing configuration, services, and SSL certificates.
         </p>
-        <ul className="list-disc pl-5 mt-2">
-          <li><a href={`${directUrl.replace(':8080', ':8090')}/dashboard/`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{directUrl.replace(':8080', ':8090')}/dashboard/</a> (mapped port 9000→8090)</li>
-          <li><a href={`${directUrl}/`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{directUrl}/</a> (internal port 8080)</li>
-          <li><a href={`${directUrl}/api/`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{directUrl}/api/</a> (API endpoint)</li>
-        </ul>
       </div>
     </div>
   );
