@@ -259,19 +259,6 @@ router.get('/report', async (req, res) => {
 });
 
 /**
- * Debug route to verify API is working
- * GET /api/certificate-lifecycle/debug
- */
-router.get('/debug', (req, res) => {
-  console.log('Debug endpoint called');
-  res.json({ 
-    status: 'ok', 
-    message: 'Certificate lifecycle API is working', 
-    time: new Date().toISOString() 
-  });
-});
-
-/**
  * Run a certificate expiration check manually
  * POST /api/certificate-lifecycle/check-expiration
  */
