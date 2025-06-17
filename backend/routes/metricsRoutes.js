@@ -5,7 +5,7 @@ const metricsService = require('../services/metricsService');
 /**
  * @route   GET /api/metrics
  * @desc    Get all metrics (current and historical)
- * @access  Admin
+ * @access  Public
  */
 router.get('/', async (req, res) => {
   try {
@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
 /**
  * @route   GET /api/metrics/current
  * @desc    Get current metrics snapshot
- * @access  Admin
+ * @access  Public
  */
 router.get('/current', async (req, res) => {
   try {
@@ -36,7 +36,7 @@ router.get('/current', async (req, res) => {
  * @route   GET /api/metrics/history/:type?
  * @desc    Get historical metrics data
  * @param   {string} type - Optional type of metrics (system, database, certificates)
- * @access  Admin
+ * @access  Public
  */
 router.get('/history/:type?', async (req, res) => {
   try {
@@ -54,7 +54,7 @@ router.get('/history/:type?', async (req, res) => {
 /**
  * @route   GET /api/metrics/system
  * @desc    Get system metrics
- * @access  Admin
+ * @access  Public
  */
 router.get('/system', async (req, res) => {
   try {
@@ -70,7 +70,7 @@ router.get('/system', async (req, res) => {
 /**
  * @route   GET /api/metrics/database
  * @desc    Get database metrics
- * @access  Admin
+ * @access  Public
  */
 router.get('/database', async (req, res) => {
   try {
@@ -85,7 +85,7 @@ router.get('/database', async (req, res) => {
 /**
  * @route   GET /api/metrics/certificates
  * @desc    Get certificate metrics
- * @access  Admin
+ * @access  Public
  */
 router.get('/certificates', async (req, res) => {
   try {

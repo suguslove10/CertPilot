@@ -1,24 +1,20 @@
 import React from 'react';
-import { Container, Row, Col } from 'react-bootstrap';
+import { Box, Typography, Container } from '@mui/material';
 import ObservabilityDashboard from '../components/dashboards/ObservabilityDashboard';
 
 const ObservabilityPage = () => {
   return (
-    <Container fluid>
-      <Row className="mb-4">
-        <Col>
-          <h1>Observability Dashboard</h1>
-          <p className="text-muted">
-            Monitor system performance, service health, and certificate status
-          </p>
-        </Col>
-      </Row>
+    <Container maxWidth="xl">
+      <Box sx={{ my: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Observability Dashboard
+        </Typography>
+        <Typography variant="body1" color="text.secondary" gutterBottom>
+          Monitor system performance, service health, and certificate status
+        </Typography>
+      </Box>
 
-      <Row>
-        <Col>
-          <ObservabilityDashboard />
-        </Col>
-      </Row>
+      <ObservabilityDashboard />
     </Container>
   );
 };

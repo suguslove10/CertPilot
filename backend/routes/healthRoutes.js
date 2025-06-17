@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
 /**
  * @route   GET /api/health/detailed
  * @desc    Detailed health check for all services
- * @access  Admin
+ * @access  Public
  */
 router.get('/detailed', async (req, res) => {
   try {
@@ -41,7 +41,7 @@ router.get('/detailed', async (req, res) => {
 /**
  * @route   GET /api/health/history
  * @desc    Get health check history
- * @access  Admin
+ * @access  Public
  */
 router.get('/history', (req, res) => {
   try {
@@ -61,7 +61,7 @@ router.get('/history', (req, res) => {
 /**
  * @route   GET /api/health/database
  * @desc    Check database health specifically
- * @access  Admin
+ * @access  Public
  */
 router.get('/database', async (req, res) => {
   try {
@@ -80,7 +80,7 @@ router.get('/database', async (req, res) => {
 /**
  * @route   GET /api/health/aws
  * @desc    Check AWS connectivity
- * @access  Admin
+ * @access  Public
  */
 router.get('/aws', async (req, res) => {
   try {

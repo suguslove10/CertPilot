@@ -26,6 +26,7 @@
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.6.3",
+    "morgan": "^1.10.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.12",
     "prom-client": "^14.2.0",

@@ -228,22 +228,6 @@ if (process.env.CLOUDFLARE_API_TOKEN) {
     }
   });
 
-  // Get DNS records for a zone
-  app.get('/api/cloudflare/zones/:zoneId/dns-records', async (req, res) => {
-    try {
-      const { zoneId } = req.params;
-      const result = await cloudflareService.listDnsRecords(process.env.CLOUDFLARE_API_TOKEN, zoneId);
-      res.json(result);
-    } catch (error) {
-      console.error('Error listing DNS records:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error listing DNS records',
-        error: error.message
-      });
-    }
-  });
-
   // Other Cloudflare endpoints...
   // We'll add more as needed
 

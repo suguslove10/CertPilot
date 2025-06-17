@@ -1,0 +1,331 @@
+const express = require('express');
+const router = express.Router();
+const CloudflareCredentials = require('../models/CloudflareCredentials');
+const cloudflareService = require('../services/cloudflareService');
+const { protect } = require('../middleware/authMiddleware');
+
+/**
+ * Save Cloudflare API token
+ * POST /api/cloudflare/credentials
+ */
+router.post('/credentials', protect, async (req, res) => {
+  try {
+    const { apiToken } = req.body;
+    const userId = req.user._id;
+    
+    if (!apiToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'API token is required'
+      });
+    }
+    
+    // Verify the token works
+    const verification = await cloudflareService.verifyCredentials(apiToken);
+    if (!verification.valid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Cloudflare API token',
+        error: verification.error || verification.message
+      });
+    }
+    
+    // Check if credentials already exist for this user
+    let credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (credentials) {
+      // Update existing credentials
+      credentials.apiToken = apiToken;
+      await credentials.save();
+    } else {
+      // Create new credentials
+      credentials = new CloudflareCredentials({
+        userId,
+        apiToken
+      });
+      await credentials.save();
+    }
+    
+    res.json({
+      success: true,
+      message: 'Cloudflare credentials saved successfully'
+    });
+  } catch (error) {
+    console.error('Error saving Cloudflare credentials:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error saving Cloudflare credentials',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Get Cloudflare credentials status
+ * GET /api/cloudflare/credentials/status
+ */
+router.get('/credentials/status', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Check if credentials exist for this user
+    const credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (!credentials) {
+      return res.json({
+        success: true,
+        hasCredentials: false
+      });
+    }
+    
+    // Verify the credentials
+    const verification = await cloudflareService.verifyCredentials(credentials.apiToken);
+    
+    res.json({
+      success: true,
+      hasCredentials: true,
+      isValid: verification.valid,
+      message: verification.message
+    });
+  } catch (error) {
+    console.error('Error checking Cloudflare credentials status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking Cloudflare credentials status',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Delete Cloudflare credentials
+ * DELETE /api/cloudflare/credentials
+ */
+router.delete('/credentials', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Delete credentials for this user
+    const result = await CloudflareCredentials.deleteOne({ userId });
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No Cloudflare credentials found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Cloudflare credentials deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting Cloudflare credentials:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting Cloudflare credentials',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * List Cloudflare zones (domains)
+ * GET /api/cloudflare/zones
+ */
+router.get('/zones', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Get credentials for this user
+    const credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (!credentials) {
+      return res.status(404).json({
+        success: false,
+        message: 'No Cloudflare credentials found'
+      });
+    }
+    
+    // List zones
+    const result = await cloudflareService.listZones(credentials.apiToken);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error listing Cloudflare zones:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error listing Cloudflare zones',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * List DNS records for a zone
+ * GET /api/cloudflare/zones/:zoneId/dns
+ */
+router.get('/zones/:zoneId/dns', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { zoneId } = req.params;
+    
+    // Get credentials for this user
+    const credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (!credentials) {
+      return res.status(404).json({
+        success: false,
+        message: 'No Cloudflare credentials found'
+      });
+    }
+    
+    // List DNS records
+    const result = await cloudflareService.listDnsRecords(credentials.apiToken, zoneId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error listing DNS records:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error listing DNS records',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Create a DNS record
+ * POST /api/cloudflare/zones/:zoneId/dns
+ */
+router.post('/zones/:zoneId/dns', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { zoneId } = req.params;
+    const recordData = req.body;
+    
+    // Get credentials for this user
+    const credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (!credentials) {
+      return res.status(404).json({
+        success: false,
+        message: 'No Cloudflare credentials found'
+      });
+    }
+    
+    // Create DNS record
+    const result = await cloudflareService.createDnsRecord(credentials.apiToken, zoneId, recordData);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error creating DNS record:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating DNS record',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Update a DNS record
+ * PUT /api/cloudflare/zones/:zoneId/dns/:recordId
+ */
+router.put('/zones/:zoneId/dns/:recordId', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { zoneId, recordId } = req.params;
+    const recordData = req.body;
+    
+    // Get credentials for this user
+    const credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (!credentials) {
+      return res.status(404).json({
+        success: false,
+        message: 'No Cloudflare credentials found'
+      });
+    }
+    
+    // Update DNS record
+    const result = await cloudflareService.updateDnsRecord(credentials.apiToken, zoneId, recordId, recordData);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating DNS record:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating DNS record',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Delete a DNS record
+ * DELETE /api/cloudflare/zones/:zoneId/dns/:recordId
+ */
+router.delete('/zones/:zoneId/dns/:recordId', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { zoneId, recordId } = req.params;
+    
+    // Get credentials for this user
+    const credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (!credentials) {
+      return res.status(404).json({
+        success: false,
+        message: 'No Cloudflare credentials found'
+      });
+    }
+    
+    // Delete DNS record
+    const result = await cloudflareService.deleteDnsRecord(credentials.apiToken, zoneId, recordId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error deleting DNS record:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting DNS record',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Purge cache for a zone
+ * POST /api/cloudflare/zones/:zoneId/purge_cache
+ */
+router.post('/zones/:zoneId/purge_cache', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { zoneId } = req.params;
+    
+    // Get credentials for this user
+    const credentials = await CloudflareCredentials.findOne({ userId });
+    
+    if (!credentials) {
+      return res.status(404).json({
+        success: false,
+        message: 'No Cloudflare credentials found'
+      });
+    }
+    
+    // Purge cache
+    const result = await cloudflareService.purgeCache(credentials.apiToken, zoneId);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error purging cache:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error purging cache',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router; 

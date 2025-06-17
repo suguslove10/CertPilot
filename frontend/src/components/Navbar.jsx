@@ -86,6 +86,9 @@ const Navbar = () => {
                   <NavLink to="/certificates" isActive={isActive('/certificates')}>
                     SSL
                   </NavLink>
+                  <NavLink to="/cloudflare-integration" isActive={isActive('/cloudflare')}>
+                    Cloudflare
+                  </NavLink>
                   <NavLink to="/traefik-dashboard" isActive={isActive('/traefik')}>
                     Traefik
                   </NavLink>
@@ -216,6 +219,9 @@ const Navbar = () => {
                   <MobileNavLink to="/traefik-certificates" active={location.pathname === '/traefik-certificates'}>
                     Traefik SSL
                   </MobileNavLink>
+                  <MobileNavLink to="/cloudflare-integration" active={location.pathname === '/cloudflare-integration'}>
+                    Cloudflare Integration
+                  </MobileNavLink>
                   <MobileNavLink to="/certificate-lifecycle" active={location.pathname === '/certificate-lifecycle'}>
                     Certificate Lifecycle
                   </MobileNavLink>
@@ -293,5 +299,42 @@ const MobileNavLink = ({ children, to, active }) => (
     {children}
   </Link>
 );
+
+const NavLinks = () => {
+  const location = useLocation();
+  
+  const isActive = (path) => {
+    return location.pathname === path ? 'active' : '';
+  };
+  
+  return (
+    <ul className="nav-links">
+      <li className={isActive('/dashboard')}>
+        <Link to="/dashboard">Dashboard</Link>
+      </li>
+      <li className={isActive('/certificates')}>
+        <Link to="/certificates">SSL Certificates</Link>
+      </li>
+      <li className={isActive('/traefik-certificates')}>
+        <Link to="/traefik-certificates">Traefik SSL</Link>
+      </li>
+      <li className={isActive('/certificate-lifecycle')}>
+        <Link to="/certificate-lifecycle">Certificate Lifecycle</Link>
+      </li>
+      <li className={isActive('/subdomains')}>
+        <Link to="/subdomains">Subdomains</Link>
+      </li>
+      <li className={isActive('/aws-integration')}>
+        <Link to="/aws-integration">AWS Integration</Link>
+      </li>
+      <li className={isActive('/cloudflare-integration')}>
+        <Link to="/cloudflare-integration">Cloudflare</Link>
+      </li>
+      <li className={isActive('/observability')}>
+        <Link to="/observability">Observability</Link>
+      </li>
+    </ul>
+  );
+};
 
 export default Navbar; 

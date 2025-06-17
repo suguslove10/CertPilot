@@ -37,7 +37,7 @@ const MetricsDashboard = () => {
   const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
 
   useEffect(() => {
-    // Initial fetch
+    console.log('MetricsDashboard component mounted');
     fetchMetrics();
 
     // Set up refresh interval
@@ -50,12 +50,17 @@ const MetricsDashboard = () => {
   const fetchMetrics = async () => {
     try {
       setLoading(true);
+      console.log('Fetching metrics data from API...');
+      console.log('API URL:', '/api/metrics');
       const response = await axios.get('/api/metrics');
+      console.log('Metrics data received:', response.data);
       setMetrics(response.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching metrics:', err);
-      setError('Failed to load metrics data');
+      console.error('Error details:', err.response ? err.response.data : 'No response data');
+      console.error('Error status:', err.response ? err.response.status : 'No status');
+      setError(`Failed to load metrics data: ${err.message}`);
     } finally {
       setLoading(false);
     }

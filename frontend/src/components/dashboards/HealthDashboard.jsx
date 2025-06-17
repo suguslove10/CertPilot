@@ -39,10 +39,10 @@ const HealthDashboard = () => {
   const [healthData, setHealthData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshInterval, setRefreshInterval] = useState(60000); // 1 minute
+  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
 
   useEffect(() => {
-    // Initial fetch
+    console.log('HealthDashboard component mounted');
     fetchHealthData();
 
     // Set up refresh interval
@@ -55,12 +55,16 @@ const HealthDashboard = () => {
   const fetchHealthData = async () => {
     try {
       setLoading(true);
+      console.log('Fetching health data from API...');
       const response = await axios.get('/api/health/detailed');
+      console.log('Health data received:', response.data);
       setHealthData(response.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching health data:', err);
-      setError('Failed to load health monitoring data');
+      console.error('Error details:', err.response ? err.response.data : 'No response data');
+      console.error('Error status:', err.response ? err.response.status : 'No status');
+      setError(`Failed to load health monitoring data: ${err.message}`);
     } finally {
       setLoading(false);
     }

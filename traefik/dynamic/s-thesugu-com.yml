@@ -1,0 +1,26 @@
+http:
+  routers:
+    s-thesugu-com:
+      rule: Host(`s.thesugu.com`)
+      service: s-thesugu-com
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+    s-thesugu-com-redirect:
+      rule: Host(`s.thesugu.com`)
+      entryPoints:
+        - web
+      middlewares:
+        - s-thesugu-com-redirect
+      service: s-thesugu-com
+  services:
+    s-thesugu-com:
+      loadBalancer:
+        servers:
+          - url: http://13.201.34.251:8081
+  middlewares:
+    s-thesugu-com-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true

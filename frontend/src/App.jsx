@@ -10,7 +10,8 @@ import CertificateManagement from './pages/CertificateManagement';
 import TraefikCertificateManagement from './pages/TraefikCertificateManagement';
 import TraefikDashboard from './pages/TraefikDashboard';
 import CertificateLifecycle from './pages/CertificateLifecycle';
-import AwsIntegration from './pages/AwsIntegration';
+import AwsIntegrationPage from './pages/AwsIntegrationPage';
+import CloudflareIntegrationPage from './pages/CloudflareIntegrationPage';
 import ObservabilityPage from './pages/ObservabilityPage';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
@@ -45,7 +46,15 @@ const App = () => {
               path="/aws-integration" 
               element={
                 <PrivateRoute>
-                  <AwsIntegration />
+                  <AwsIntegrationPage />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/cloudflare-integration" 
+              element={
+                <PrivateRoute>
+                  <CloudflareIntegrationPage />
                 </PrivateRoute>
               } 
             />

@@ -88,7 +88,7 @@ const checkApiHealth = async () => {
 const checkTraefikHealth = async () => {
   try {
     // Check if Traefik dynamic configuration directory exists
-    const traefikDynamicDir = path.join(process.cwd(), '..', 'traefik', 'dynamic');
+    const traefikDynamicDir = process.env.TRAEFIK_DYNAMIC_DIR || '/etc/traefik/dynamic';
     await fs.access(traefikDynamicDir);
 
     // For a complete check, we would ideally ping Traefik's health endpoint
@@ -165,7 +165,7 @@ const checkAllServices = async () => {
     servicesHealth.timestamp = timestamp;
     servicesHealth.services.database = { status: 'healthy', details: { state: 1, stateName: 'connected', ping: 'successful' } };
     servicesHealth.services.api = { status: 'healthy', details: { responseTime: '15ms', responseData: { status: 'healthy' } } };
-    servicesHealth.services.traefik = { status: 'healthy', details: { configFilesCount: 3, configDirectory: '/traefik/dynamic' } };
+    servicesHealth.services.traefik = { status: 'healthy', details: { configFilesCount: 3, configDirectory: process.env.TRAEFIK_DYNAMIC_DIR || '/etc/traefik/dynamic' } };
     servicesHealth.services.aws = { status: 'healthy', details: { credentialsConfigured: true, region: 'us-east-1' } };
     servicesHealth.overallStatus = 'healthy';
   } else {

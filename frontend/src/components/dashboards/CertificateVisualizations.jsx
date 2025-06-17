@@ -65,6 +65,7 @@ const CertificateVisualizations = () => {
       setLoading(true);
       setError(null); // Clear previous errors
       console.log('Fetching certificate data from API...');
+      console.log('API URL:', '/api/certificate-lifecycle/report');
       const response = await axios.get('/api/certificate-lifecycle/report');
       console.log('Certificate data response:', response.data);
       
@@ -78,7 +79,10 @@ const CertificateVisualizations = () => {
       }
     } catch (err) {
       console.error('Error fetching certificate data:', err);
-      setError('Failed to load certificate data');
+      console.error('Error details:', err.response ? err.response.data : 'No response data');
+      console.error('Error status:', err.response ? err.response.status : 'No status');
+      setError(`Failed to load certificate data: ${err.message}`);
+      setCertificateData([]);
     } finally {
       setLoading(false);
     }
