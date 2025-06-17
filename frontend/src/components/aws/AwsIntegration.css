@@ -1,0 +1,137 @@
+.aws-integration {
+  padding: var(--spacing-lg);
+}
+
+.aws-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.aws-header h1 {
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.aws-tabs {
+  display: flex;
+  margin: var(--spacing-lg) 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.aws-tab-button {
+  margin-right: var(--spacing-xs);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  position: relative;
+}
+
+.aws-tab-button:focus {
+  box-shadow: none;
+}
+
+.aws-tab-button:not(.btn-primary):hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.btn-primary.aws-tab-button::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-primary);
+}
+
+.aws-tab-content {
+  margin-top: var(--spacing-lg);
+}
+
+.instance-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.instance-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.card-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.aws-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.aws-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) 0;
+  color: var(--color-text-secondary);
+}
+
+.aws-empty-state svg {
+  margin-bottom: var(--spacing-md);
+  color: var(--color-secondary);
+}
+
+.aws-empty-state p {
+  margin-bottom: var(--spacing-md);
+}
+
+.aws-certificates-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--spacing-md);
+}
+
+.aws-certificates-table th {
+  text-align: left;
+  padding: var(--spacing-sm);
+  font-weight: var(--font-weight-semibold);
+  border-bottom: 2px solid var(--color-divider);
+}
+
+.aws-certificates-table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .aws-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .aws-tab-button {
+    flex: 1;
+    min-width: 120px;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .aws-actions {
+    flex-direction: column;
+  }
+  
+  .aws-certificates-table {
+    display: block;
+    overflow-x: auto;
+  }
+} 

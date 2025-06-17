@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="150" height="150" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield shape -->
+  <path d="M75 15L120 30V75C120 100 100 120 75 135C50 120 30 100 30 75V30L75 15Z" fill="#E5F0FF" stroke="#3B82F6" stroke-width="3"/>
+  
+  <!-- Checkmark -->
+  <path d="M50 75L65 90L100 55" stroke="#3B82F6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Lock icon -->
+  <rect x="65" y="40" width="20" height="15" rx="2" fill="#3B82F6"/>
+  <rect x="60" y="55" width="30" height="25" rx="4" fill="#3B82F6"/>
+  <circle cx="75" cy="67" r="5" fill="white"/>
+  <rect x="74" y="67" width="2" height="8" rx="1" fill="white"/>
+</svg> 

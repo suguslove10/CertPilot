@@ -1,0 +1,132 @@
+.navbar {
+  background-color: var(--color-primary);
+  padding: var(--spacing-md) 0;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: var(--zIndex-sticky);
+}
+
+.navbar .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  color: white;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  text-decoration: none;
+}
+
+.navbar-logo:hover {
+  text-decoration: none;
+  color: white;
+}
+
+.navbar-logo-img {
+  height: 2rem;
+  margin-right: var(--spacing-sm);
+}
+
+.navbar-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+}
+
+.navbar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+}
+
+.navbar-nav {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  margin-left: var(--spacing-xl);
+}
+
+.nav-item {
+  margin-right: var(--spacing-md);
+}
+
+.nav-link {
+  color: rgba(255, 255, 255, 0.8);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  transition: var(--transition-default);
+}
+
+.nav-link:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link-active {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.navbar-auth {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* Mobile navigation */
+@media (max-width: 768px) {
+  .navbar-toggle {
+    display: block;
+  }
+
+  .navbar-collapse {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--color-primary);
+    padding: var(--spacing-md);
+    flex-direction: column;
+    align-items: flex-start;
+    box-shadow: var(--shadow-lg);
+    display: none;
+  }
+
+  .navbar-collapse.show {
+    display: flex;
+  }
+
+  .navbar-nav {
+    flex-direction: column;
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .nav-item {
+    margin-right: 0;
+    margin-bottom: var(--spacing-sm);
+    width: 100%;
+  }
+
+  .nav-link {
+    display: block;
+    padding: var(--spacing-sm);
+  }
+
+  .navbar-auth {
+    width: 100%;
+    justify-content: center;
+  }
+} 

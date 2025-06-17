@@ -1,0 +1,225 @@
+/* 
+ * Input Component
+ * Modern, clean, and accessible input field design
+ */
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--spacing-4);
+  position: relative;
+}
+
+.input-full-width {
+  width: 100%;
+}
+
+.input-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-1);
+  display: inline-block;
+}
+
+.input-required {
+  color: var(--color-error-500);
+  margin-left: var(--spacing-1);
+}
+
+.input-field-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background-color: var(--color-paper);
+  transition: all 150ms ease-in-out;
+  position: relative;
+}
+
+.input-field-wrapper:hover:not(.input-disabled .input-field-wrapper) {
+  border-color: var(--color-neutral-400);
+}
+
+.input-field-wrapper:focus-within {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 2px var(--color-primary-100);
+  outline: none;
+}
+
+.input-prefix {
+  display: flex;
+  align-items: center;
+  padding-left: var(--spacing-3);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.input-suffix {
+  display: flex;
+  align-items: center;
+  padding-right: var(--spacing-3);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.input-field {
+  width: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0 var(--spacing-3);
+  appearance: none;
+}
+
+/* Input sizing */
+.input-sm .input-field {
+  height: 2rem;
+  font-size: var(--font-size-sm);
+}
+
+.input-md .input-field {
+  height: 2.5rem;
+  font-size: var(--font-size-base);
+}
+
+.input-lg .input-field {
+  height: 3rem;
+  font-size: var(--font-size-lg);
+}
+
+.input-field::placeholder {
+  color: var(--color-neutral-400);
+  opacity: 1;
+}
+
+.input-helper-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  margin-top: var(--spacing-1);
+  line-height: 1.5;
+}
+
+.input-error-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-error-500);
+  margin-top: var(--spacing-1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.5;
+}
+
+/* Error state */
+.input-error .input-field-wrapper {
+  border-color: var(--color-error-500);
+}
+
+.input-error .input-field-wrapper:focus-within {
+  box-shadow: 0 0 0 2px var(--color-error-100);
+}
+
+.input-error .input-label {
+  color: var(--color-error-500);
+}
+
+/* Disabled state */
+.input-disabled .input-field-wrapper {
+  background-color: var(--color-neutral-100);
+  border-color: var(--color-neutral-200);
+  cursor: not-allowed;
+}
+
+.input-disabled .input-field {
+  color: var(--color-neutral-500);
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--color-neutral-500); /* Fix for iOS */
+  opacity: 1; /* Fix for iOS */
+}
+
+.input-disabled .input-label,
+.input-disabled .input-prefix,
+.input-disabled .input-suffix {
+  color: var(--color-neutral-500);
+}
+
+/* Read-only state */
+.input-readonly .input-field-wrapper {
+  background-color: var(--color-neutral-50);
+  border-color: var(--color-neutral-200);
+}
+
+.input-readonly .input-field {
+  color: var(--color-neutral-700);
+  cursor: default;
+}
+
+/* Visually hidden label for a11y */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Styles for specific input types */
+input[type="date"].input-field,
+input[type="time"].input-field,
+input[type="datetime-local"].input-field {
+  min-height: 2.5rem;
+}
+
+/* Dark mode adjustments */
+.dark-mode .input-field-wrapper {
+  background-color: var(--color-paper);
+  border-color: var(--color-neutral-700);
+}
+
+.dark-mode .input-field-wrapper:hover:not(.input-disabled .input-field-wrapper) {
+  border-color: var(--color-neutral-600);
+}
+
+.dark-mode .input-field-wrapper:focus-within {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.dark-mode .input-field::placeholder {
+  color: var(--color-neutral-500);
+}
+
+.dark-mode .input-disabled .input-field-wrapper {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-neutral-800);
+}
+
+.dark-mode .input-readonly .input-field-wrapper {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: var(--color-neutral-800);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .input-sm .input-field,
+  .input-md .input-field {
+    height: 2.5rem; /* Slightly larger touch targets on mobile */
+  }
+  
+  .input-label {
+    margin-bottom: var(--spacing-2);
+  }
+}
+
+/* Accessibility - focus visible */
+@media (prefers-reduced-motion: reduce) {
+  .input-field-wrapper,
+  .input-field {
+    transition: none;
+  }
+} 

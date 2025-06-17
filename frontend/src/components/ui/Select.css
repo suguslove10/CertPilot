@@ -1,0 +1,228 @@
+/* 
+ * Select Component
+ * Modern, clean, and accessible dropdown design
+ */
+
+.select-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--spacing-4);
+  position: relative;
+}
+
+.select-full-width {
+  width: 100%;
+}
+
+.select-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-1);
+  display: inline-block;
+}
+
+.select-required {
+  color: var(--color-error-500);
+  margin-left: var(--spacing-1);
+}
+
+.select-field-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background-color: var(--color-paper);
+  transition: all 150ms ease-in-out;
+}
+
+.select-field-wrapper:hover:not(.select-disabled .select-field-wrapper) {
+  border-color: var(--color-neutral-400);
+}
+
+.select-arrow {
+  position: absolute;
+  top: 50%;
+  right: var(--spacing-3);
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--color-neutral-600);
+  pointer-events: none;
+  transition: transform 150ms ease-in-out;
+}
+
+.select-field-wrapper:focus-within .select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+  border-top-color: var(--color-primary-600);
+}
+
+.select-field {
+  width: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding-right: calc(var(--spacing-8));
+  position: relative;
+  z-index: 1;
+}
+
+/* Select sizing */
+.select-sm .select-field {
+  height: 2rem;
+  font-size: var(--font-size-sm);
+  padding: 0 var(--spacing-3);
+}
+
+.select-md .select-field {
+  height: 2.5rem;
+  font-size: var(--font-size-base);
+  padding: 0 var(--spacing-3);
+}
+
+.select-lg .select-field {
+  height: 3rem;
+  font-size: var(--font-size-lg);
+  padding: 0 var(--spacing-4);
+}
+
+.select-field-wrapper:focus-within {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 2px var(--color-primary-100);
+  outline: none;
+}
+
+.select-field option {
+  background-color: var(--color-paper);
+  color: var(--color-text-primary);
+  padding: var(--spacing-2);
+  font-size: var(--font-size-base);
+}
+
+.select-field optgroup {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+}
+
+.select-helper-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  margin-top: var(--spacing-1);
+  line-height: 1.5;
+}
+
+.select-error-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-error-500);
+  margin-top: var(--spacing-1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.5;
+}
+
+/* Error state */
+.select-error .select-field-wrapper {
+  border-color: var(--color-error-500);
+}
+
+.select-error .select-field-wrapper:focus-within {
+  box-shadow: 0 0 0 2px var(--color-error-100);
+}
+
+.select-error .select-label {
+  color: var(--color-error-500);
+}
+
+.select-error .select-arrow {
+  border-top-color: var(--color-error-500);
+}
+
+/* Disabled state */
+.select-disabled .select-field-wrapper {
+  background-color: var(--color-neutral-100);
+  border-color: var(--color-neutral-200);
+  cursor: not-allowed;
+}
+
+.select-disabled .select-field {
+  color: var(--color-neutral-500);
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--color-neutral-500); /* Fix for iOS */
+  opacity: 1; /* Fix for iOS */
+}
+
+.select-disabled .select-label,
+.select-disabled .select-arrow {
+  color: var(--color-neutral-500);
+  border-top-color: var(--color-neutral-400);
+}
+
+/* Visually hidden label for a11y */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Dark mode adjustments */
+.dark-mode .select-field-wrapper {
+  background-color: var(--color-paper);
+  border-color: var(--color-neutral-700);
+}
+
+.dark-mode .select-field-wrapper:hover:not(.select-disabled .select-field-wrapper) {
+  border-color: var(--color-neutral-600);
+}
+
+.dark-mode .select-field-wrapper:focus-within {
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.dark-mode .select-field option {
+  background-color: var(--color-neutral-900);
+  color: var(--color-text-primary);
+}
+
+.dark-mode .select-arrow {
+  border-top-color: var(--color-neutral-400);
+}
+
+.dark-mode .select-disabled .select-field-wrapper {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-neutral-800);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .select-sm .select-field,
+  .select-md .select-field {
+    height: 2.5rem; /* Slightly larger touch targets on mobile */
+  }
+  
+  .select-label {
+    margin-bottom: var(--spacing-2);
+  }
+}
+
+/* Accessibility - focus visible */
+@media (prefers-reduced-motion: reduce) {
+  .select-field-wrapper,
+  .select-arrow {
+    transition: none;
+  }
+}

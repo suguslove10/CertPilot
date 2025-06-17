@@ -1,0 +1,4 @@
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: sugu@gmail.com

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield shape -->
+  <path d="M16 4L28 8V16C28 22 22 26 16 30C10 26 4 22 4 16V8L16 4Z" fill="#E5F0FF" stroke="#3B82F6" stroke-width="1"/>
+  
+  <!-- Checkmark -->
+  <path d="M10 16L14 20L22 12" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg> 

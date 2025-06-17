@@ -1,0 +1,195 @@
+/* 
+ * Card Component
+ * Modern, clean, and accessible design
+ */
+
+.card {
+  background-color: var(--color-paper);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  width: auto;
+  height: auto;
+}
+
+/* Focus state for keyboard navigation */
+.card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring-default);
+}
+
+/* Elevation variants */
+.card-elevation-none {
+  box-shadow: none;
+}
+
+.card-elevation-xs {
+  box-shadow: var(--shadow-xs);
+}
+
+.card-elevation-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.card-elevation-md {
+  box-shadow: var(--shadow-md);
+}
+
+.card-elevation-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+.card-elevation-xl {
+  box-shadow: var(--shadow-xl);
+}
+
+.card-elevation-2xl {
+  box-shadow: var(--shadow-2xl);
+}
+
+/* Border variant */
+.card-border {
+  border: 1px solid var(--color-divider);
+}
+
+/* Width variant */
+.card-full-width {
+  width: 100%;
+}
+
+/* Clickable state */
+.card-clickable {
+  cursor: pointer;
+}
+
+.card-clickable:hover, .card-hoverable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-clickable:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-md);
+}
+
+/* Padding variants */
+.card-padding-none .card-content {
+  padding: 0;
+}
+
+.card-padding-xs .card-content {
+  padding: var(--spacing-2);
+}
+
+.card-padding-sm .card-content {
+  padding: var(--spacing-3);
+}
+
+.card-padding-md .card-content {
+  padding: var(--spacing-4);
+}
+
+.card-padding-lg .card-content {
+  padding: var(--spacing-6);
+}
+
+.card-padding-xl .card-content {
+  padding: var(--spacing-8);
+}
+
+/* Card header */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--spacing-4) var(--spacing-4);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.card-header-content {
+  flex: 1;
+}
+
+.card-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  color: var(--color-text-primary);
+  margin: 0;
+  margin-bottom: var(--spacing-1);
+}
+
+.card-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+.card-header-action {
+  margin-left: var(--spacing-4);
+  display: flex;
+  align-items: center;
+}
+
+/* Card content */
+.card-content {
+  padding: var(--spacing-4);
+  flex: 1;
+}
+
+/* Card footer */
+.card-footer {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-top: 1px solid var(--color-divider);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .card-header,
+  .card-content,
+  .card-footer {
+    padding: var(--spacing-3);
+  }
+  
+  .card-padding-lg .card-content {
+    padding: var(--spacing-4);
+  }
+  
+  .card-padding-xl .card-content {
+    padding: var(--spacing-6);
+  }
+  
+  .card-title {
+    font-size: var(--font-size-base);
+  }
+}
+
+/* Dark mode adjustments */
+.dark-mode .card {
+  background-color: var(--color-paper);
+}
+
+.dark-mode .card-border {
+  border-color: var(--color-divider);
+}
+
+/* Accessible focus styles */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+  
+  .card-clickable:hover, 
+  .card-hoverable:hover,
+  .card-clickable:active {
+    transform: none;
+  }
+} 

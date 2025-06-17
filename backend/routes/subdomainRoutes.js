@@ -1,0 +1,700 @@
+const express = require('express');
+const router = express.Router();
+const AWS = require('aws-sdk');
+const axios = require('axios');
+const Subdomain = require('../models/Subdomain');
+const AwsCredentials = require('../models/AwsCredentials');
+const { protect } = require('../middleware/authMiddleware');
+const bcrypt = require('bcrypt');
+
+// Helper function to get public IP address
+const getPublicIpAddress = async () => {
+  try {
+    const response = await axios.get('https://api.ipify.org?format=json');
+    return response.data.ip;
+  } catch (error) {
+    console.error('Error getting public IP:', error);
+    throw new Error('Failed to detect public IP address');
+  }
+};
+
+// Get AWS credentials for a user
+const getUserAwsCredentials = async (userId) => {
+  // If environment variables are set, return a mock credentials object
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    console.log('Using AWS credentials from environment variables instead of database');
+    return {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      region: process.env.AWS_REGION || 'us-east-1',
+      // Mock the getDecryptedSecretKey method
+      getDecryptedSecretKey: () => process.env.AWS_SECRET_ACCESS_KEY
+    };
+  }
+
+  // Otherwise get from database
+  const credentials = await AwsCredentials.findOne({ userId });
+  if (!credentials) {
+    throw new Error('AWS credentials not found');
+  }
+  return credentials;
+};
+
+// Configure AWS Route53 with user credentials
+const configureRoute53 = async (credentials, rawSecretKey) => {
+  // First try to use environment variables
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    console.log('Using AWS credentials from environment variables');
+    // Use the most direct configuration possible
+    AWS.config.update({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION || credentials.region || 'us-east-1'
+    });
+    return new AWS.Route53();
+  }
+  
+  // Fall back to user credentials if environment variables not available
+  // Use the raw secret key (if provided) or the stored encrypted one
+  const secretKey = rawSecretKey || credentials.getDecryptedSecretKey();
+  return new AWS.Route53({
+    accessKeyId: credentials.accessKeyId,
+    secretAccessKey: secretKey,
+    region: credentials.region
+  });
+};
+
+// Get hosted zones for a domain
+const getHostedZoneId = async (route53, domain) => {
+  try {
+    const zones = await route53.listHostedZones().promise();
+    const matchingZone = zones.HostedZones.find(
+      zone => domain.endsWith(zone.Name.slice(0, -1)) // Remove trailing dot
+    );
+    
+    if (!matchingZone) {
+      throw new Error(`No hosted zone found for domain: ${domain}`);
+    }
+    
+    return matchingZone.Id.split('/').pop(); // Extract ID from path
+  } catch (error) {
+    console.error('Error getting hosted zone:', error);
+    throw error;
+  }
+};
+
+// Create/update DNS record in Route53
+const createOrUpdateDnsRecord = async (route53, params) => {
+  try {
+    const response = await route53.changeResourceRecordSets(params).promise();
+    return response.ChangeInfo;
+  } catch (error) {
+    console.error('Error creating/updating DNS record:', error);
+    throw error;
+  }
+};
+
+// @route   POST /api/subdomains
+// @desc    Create a new subdomain
+// @access  Private
+router.post('/', protect, async (req, res) => {
+  const { name, parentDomain, recordType = 'A', ttl = 300 } = req.body;
+  
+  try {
+    // Validate required fields
+    if (!name || !parentDomain) {
+      return res.status(400).json({ message: 'Please provide subdomain name and parent domain' });
+    }
+    
+    // Get session credentials if available
+    const sessionCredentials = req.session?.awsCredentials;
+    
+    // Get user's AWS credentials from database
+    const dbCredentials = await getUserAwsCredentials(req.user._id);
+    
+    // Configure AWS Route53 with the raw secret key if available from session
+    const route53 = await configureRoute53(dbCredentials, sessionCredentials?.secretAccessKey);
+    
+    try {
+      // Get hosted zone ID for the parent domain
+      const hostedZoneId = await getHostedZoneId(route53, parentDomain);
+      
+      // Get public IP address
+      const publicIp = await getPublicIpAddress();
+      
+      // Full domain name (subdomain.parentdomain.com)
+      const fullDomainName = `${name}.${parentDomain}`;
+      
+      // Check if subdomain already exists
+      const existingSubdomain = await Subdomain.findOne({ 
+        userId: req.user._id,
+        name,
+        parentDomain
+      });
+      
+      // Parameters for the DNS record change
+      const params = {
+        HostedZoneId: hostedZoneId,
+        ChangeBatch: {
+          Changes: [
+            {
+              Action: existingSubdomain ? 'UPSERT' : 'CREATE',
+              ResourceRecordSet: {
+                Name: fullDomainName,
+                Type: recordType,
+                TTL: ttl,
+                ResourceRecords: [
+                  {
+                    Value: publicIp
+                  }
+                ]
+              }
+            }
+          ],
+          Comment: `CertPilot - ${existingSubdomain ? 'Updated' : 'Created'} subdomain`
+        }
+      };
+      
+      // Make the change in Route53
+      const changeInfo = await createOrUpdateDnsRecord(route53, params);
+      
+      let subdomain;
+      
+      if (existingSubdomain) {
+        // Update existing subdomain
+        existingSubdomain.targetIp = publicIp;
+        existingSubdomain.recordType = recordType;
+        existingSubdomain.ttl = ttl;
+        subdomain = await existingSubdomain.save();
+        
+        return res.json({
+          message: 'Subdomain updated successfully',
+          subdomain,
+          changeInfo
+        });
+      } else {
+        // Create new subdomain
+        subdomain = await Subdomain.create({
+          userId: req.user._id,
+          name,
+          parentDomain,
+          hostedZoneId,
+          targetIp: publicIp,
+          recordType,
+          ttl
+        });
+        
+        return res.status(201).json({
+          message: 'Subdomain created successfully',
+          subdomain,
+          changeInfo
+        });
+      }
+    } catch (awsError) {
+      console.error('Error getting hosted zone:', awsError);
+      
+      // If environment variables are set, never show the credential prompt
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+        console.log('AWS environment variables exist but still got an error. Bypassing credential prompt.');
+        throw awsError;
+      }
+      
+      // If we get a signature error and don't have session credentials,
+      // respond with a special error that tells the frontend to prompt for credentials
+      if (awsError.code === 'SignatureDoesNotMatch' && !sessionCredentials) {
+        return res.status(403).json({
+          message: 'AWS credential verification required',
+          needCredentials: true,
+          error: awsError.message,
+          region: dbCredentials.region
+        });
+      }
+      
+      throw awsError;
+    }
+    
+  } catch (error) {
+    console.error('Error creating subdomain:', error);
+    res.status(500).json({ 
+      message: 'Failed to create subdomain', 
+      error: error.message 
+    });
+  }
+});
+
+// @route   GET /api/subdomains
+// @desc    Get all subdomains for a user
+// @access  Private
+router.get('/', protect, async (req, res) => {
+  try {
+    const subdomains = await Subdomain.find({ userId: req.user._id });
+    res.json(subdomains);
+  } catch (error) {
+    console.error('Error getting subdomains:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/subdomains/count
+// @desc    Get count of subdomains for a user
+// @access  Private
+router.get('/count', protect, async (req, res) => {
+  try {
+    // In development mode, return 4 for demo purposes
+    if (process.env.NODE_ENV !== 'production') {
+      return res.json({ count: 4 });
+    }
+    
+    const count = await Subdomain.countDocuments();
+    res.json({ count });
+  } catch (error) {
+    console.error('Error counting subdomains:', error);
+    res.status(500).json({ message: 'Error fetching subdomain count' });
+  }
+});
+
+// @route   GET /api/subdomains/:id
+// @desc    Get a specific subdomain
+// @access  Private
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const subdomain = await Subdomain.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    });
+    
+    if (!subdomain) {
+      return res.status(404).json({ message: 'Subdomain not found' });
+    }
+    
+    res.json(subdomain);
+  } catch (error) {
+    console.error('Error getting subdomain:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   PUT /api/subdomains/:id
+// @desc    Update a subdomain
+// @access  Private
+router.put('/:id', protect, async (req, res) => {
+  const { recordType, ttl, applicationPort } = req.body;
+  
+  try {
+    let subdomain = await Subdomain.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    });
+    
+    if (!subdomain) {
+      return res.status(404).json({ message: 'Subdomain not found' });
+    }
+    
+    // Get user's AWS credentials
+    const credentials = await getUserAwsCredentials(req.user._id);
+    
+    // Configure AWS Route53
+    const route53 = await configureRoute53(credentials);
+    
+    // Get the public IP address
+    const publicIp = await getPublicIpAddress();
+    
+    // Full domain name
+    const fullDomainName = `${subdomain.name}.${subdomain.parentDomain}`;
+    
+    // Parameters for the DNS record change
+    const params = {
+      HostedZoneId: subdomain.hostedZoneId,
+      ChangeBatch: {
+        Changes: [
+          {
+            Action: 'UPSERT',
+            ResourceRecordSet: {
+              Name: fullDomainName,
+              Type: recordType || subdomain.recordType,
+              TTL: ttl || subdomain.ttl,
+              ResourceRecords: [
+                {
+                  Value: publicIp
+                }
+              ]
+            }
+          }
+        ],
+        Comment: 'CertPilot - Updated subdomain'
+      }
+    };
+    
+    // Make the change in Route53
+    const changeInfo = await createOrUpdateDnsRecord(route53, params);
+    
+    // Update subdomain in database
+    if (recordType) subdomain.recordType = recordType;
+    if (ttl) subdomain.ttl = ttl;
+    if (typeof applicationPort !== 'undefined') {
+      console.log(`Updating application port for ${fullDomainName} to ${applicationPort}`);
+      subdomain.applicationPort = applicationPort;
+    }
+    subdomain.targetIp = publicIp;
+    
+    subdomain = await subdomain.save();
+    
+    res.json({
+      message: 'Subdomain updated successfully',
+      subdomain,
+      changeInfo
+    });
+    
+  } catch (error) {
+    console.error('Error updating subdomain:', error);
+    res.status(500).json({ 
+      message: 'Failed to update subdomain', 
+      error: error.message 
+    });
+  }
+});
+
+// @route   DELETE /api/subdomains/:id
+// @desc    Delete a subdomain
+// @access  Private
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const forceDelete = req.query.force === 'true';
+    
+    const subdomain = await Subdomain.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    });
+    
+    if (!subdomain) {
+      return res.status(404).json({ message: 'Subdomain not found' });
+    }
+    
+    // Full domain name for logging
+    const fullDomainName = `${subdomain.name}.${subdomain.parentDomain}`;
+    
+    try {
+      // Skip Route53 deletion if force delete is enabled
+      if (!forceDelete) {
+        // Get user's AWS credentials
+        const credentials = await getUserAwsCredentials(req.user._id);
+        
+        // Configure AWS Route53
+        const route53 = await configureRoute53(credentials);
+      
+        // Parameters for the DNS record deletion
+        const params = {
+          HostedZoneId: subdomain.hostedZoneId,
+          ChangeBatch: {
+            Changes: [
+              {
+                Action: 'DELETE',
+                ResourceRecordSet: {
+                  Name: fullDomainName,
+                  Type: subdomain.recordType,
+                  TTL: subdomain.ttl,
+                  ResourceRecords: [
+                    {
+                      Value: subdomain.targetIp
+                    }
+                  ]
+                }
+              }
+            ],
+            Comment: 'CertPilot - Deleted subdomain'
+          }
+        };
+        
+        // Make the change in Route53
+        await createOrUpdateDnsRecord(route53, params);
+        console.log(`Successfully deleted Route53 record for ${fullDomainName}`);
+      } else {
+        console.log(`Skipping Route53 record deletion for ${fullDomainName} (force delete enabled)`);
+      }
+    } catch (awsError) {
+      console.error(`Error deleting Route53 record: ${awsError.message}`);
+      
+      // If not force deleting, return the error
+      if (!forceDelete) {
+        return res.status(500).json({
+          message: 'Failed to delete subdomain',
+          error: awsError.message,
+          canForceDelete: true // Indicate that force delete is an option
+        });
+      }
+      
+      // Otherwise log and continue with database deletion
+      console.log(`Continuing with database deletion despite Route53 error (force delete enabled)`);
+    }
+    
+    // Delete certificates associated with this subdomain
+    try {
+      const Certificate = require('../models/Certificate');
+      const certificates = await Certificate.find({ subdomainId: subdomain._id });
+      
+      // Delete related Traefik configurations
+      const traefikManager = require('../services/traefikManager');
+      if (subdomain.traefikRouter) {
+        await traefikManager.removeRouterConfig(subdomain);
+      }
+      
+      // Delete certificate records
+      for (const cert of certificates) {
+        await Certificate.findByIdAndDelete(cert._id);
+      }
+      
+      console.log(`Deleted ${certificates.length} certificates for ${fullDomainName}`);
+    } catch (certError) {
+      console.error(`Error deleting certificates: ${certError.message}`);
+      // Continue with subdomain deletion even if certificate deletion fails
+    }
+    
+    // Delete from database using findByIdAndDelete for Mongoose v6+ compatibility
+    await Subdomain.findByIdAndDelete(subdomain._id);
+    
+    res.json({ 
+      message: 'Subdomain deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting subdomain:', error);
+    res.status(500).json({ 
+      message: 'Failed to delete subdomain', 
+      error: error.message 
+    });
+  }
+});
+
+// @route   GET /api/subdomains/zones/list
+// @desc    Get available hosted zones
+// @access  Private
+router.get('/zones/list', protect, async (req, res) => {
+  try {
+    // Check if we have credentials in session (temporary for this request)
+    const sessionCredentials = req.session?.awsCredentials;
+    
+    // Get user's AWS credentials from database
+    const dbCredentials = await getUserAwsCredentials(req.user._id);
+    
+    // Configure AWS Route53 with the raw secret key if available
+    const route53 = await configureRoute53(dbCredentials, sessionCredentials?.secretAccessKey);
+    
+    try {
+      // Get hosted zones
+      const zones = await route53.listHostedZones().promise();
+      
+      // Format for frontend
+      const formattedZones = zones.HostedZones.map(zone => ({
+        id: zone.Id.split('/').pop(),
+        name: zone.Name.slice(0, -1), // Remove trailing dot
+        recordCount: zone.ResourceRecordSetCount
+      }));
+      
+      res.json(formattedZones);
+    } catch (awsError) {
+      console.error('Error getting hosted zones:', awsError);
+      
+      // If environment variables are set, never show the credential prompt
+      if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+        console.log('AWS environment variables exist but still got an error. Bypassing credential prompt.');
+        throw awsError;
+      }
+      
+      // If we get a signature error and don't have session credentials,
+      // respond with a special error that tells the frontend to prompt for credentials
+      if (awsError.code === 'SignatureDoesNotMatch' && !sessionCredentials) {
+        return res.status(403).json({
+          message: 'AWS credential verification required',
+          needCredentials: true,
+          error: awsError.message
+        });
+      }
+      
+      res.status(500).json({ 
+        message: 'Failed to get hosted zones', 
+        error: awsError.message 
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error getting hosted zones:', error);
+    res.status(500).json({ 
+      message: 'Failed to get hosted zones', 
+      error: error.message 
+    });
+  }
+});
+
+// @route   POST /api/subdomains/verify-credentials
+// @desc    Verify AWS credentials and store them temporarily in session
+// @access  Private
+router.post('/verify-credentials', protect, async (req, res) => {
+  const { accessKeyId, secretAccessKey, region } = req.body;
+
+  try {
+    // Ensure we have all required credentials
+    if (!accessKeyId || !secretAccessKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Access key ID and secret access key are required'
+      });
+    }
+
+    // Verify the credentials with AWS
+    const route53 = new AWS.Route53({
+      accessKeyId,
+      secretAccessKey,
+      region: region || 'us-east-1'
+    });
+
+    // Test the credentials by listing hosted zones
+    await route53.listHostedZones().promise();
+
+    // Store the credentials in database (encrypted)
+    let awsCredentials = await AwsCredentials.findOne({ userId: req.user._id });
+    
+    if (awsCredentials) {
+      // Update existing credentials
+      awsCredentials.accessKeyId = accessKeyId;
+      awsCredentials.secretAccessKey = secretAccessKey; // Will be encrypted in pre-save hook
+      awsCredentials.region = region || 'us-east-1';
+    } else {
+      // Create new credentials
+      awsCredentials = new AwsCredentials({
+        userId: req.user._id,
+        accessKeyId,
+        secretAccessKey, // Will be encrypted in pre-save hook
+        region: region || 'us-east-1'
+      });
+    }
+    
+    await awsCredentials.save();
+
+    // Store the credentials temporarily in session (only for this request)
+    req.session.awsCredentials = {
+      accessKeyId,
+      secretAccessKey,
+      region: region || 'us-east-1'
+    };
+    
+    // Save the session
+    await new Promise((resolve, reject) => {
+      req.session.save(err => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'AWS credentials verified and saved successfully' 
+    });
+  } catch (err) {
+    console.error('Error verifying AWS credentials:', err);
+    res.status(400).json({ 
+      success: false, 
+      message: 'Invalid AWS credentials',
+      error: err.message
+    });
+  }
+});
+
+// @route   GET /api/subdomains/debug
+// @desc    Debug endpoint to see all subdomains in the database regardless of user
+// @access  Private (but shows all data for debugging)
+router.get('/debug', protect, async (req, res) => {
+  try {
+    console.log('Debug request for subdomains');
+    // Find all subdomains
+    const allSubdomains = await Subdomain.find({});
+    console.log(`Found ${allSubdomains.length} total subdomains in database`);
+    
+    // Log details about each subdomain
+    allSubdomains.forEach((subdomain, index) => {
+      console.log(`Subdomain ${index + 1}:`);
+      console.log(`- ID: ${subdomain._id}`);
+      console.log(`- Name: ${subdomain.name}`);
+      console.log(`- Parent Domain: ${subdomain.parentDomain}`);
+      console.log(`- User ID: ${subdomain.userId}`);
+    });
+    
+    // For the current user
+    const userSubdomains = await Subdomain.find({ userId: req.user._id });
+    console.log(`Found ${userSubdomains.length} subdomains for user ID: ${req.user._id}`);
+    
+    return res.json({
+      totalCount: allSubdomains.length,
+      userCount: userSubdomains.length,
+      allSubdomains: allSubdomains.map(s => ({
+        id: s._id,
+        name: s.name,
+        parentDomain: s.parentDomain,
+        userId: s.userId
+      })),
+      currentUser: req.user._id
+    });
+  } catch (error) {
+    console.error('Error in debug endpoint:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Add a demo route to create sample subdomains
+router.post('/create-samples', async (req, res) => {
+  try {
+    // Check if there are already subdomains
+    const existingCount = await Subdomain.countDocuments();
+    
+    if (existingCount > 0) {
+      return res.status(400).json({ message: 'Sample subdomains already exist' });
+    }
+    
+    // Create sample subdomains
+    const sampleSubdomains = [
+      {
+        name: 'api',
+        domain: 'example.com',
+        status: 'active',
+        recordType: 'A',
+        value: '192.168.1.10',
+        description: 'API server'
+      },
+      {
+        name: 'www',
+        domain: 'example.com',
+        status: 'active',
+        recordType: 'A',
+        value: '192.168.1.11',
+        description: 'Main website'
+      },
+      {
+        name: 'admin',
+        domain: 'example.com',
+        status: 'active',
+        recordType: 'A',
+        value: '192.168.1.12',
+        description: 'Admin portal'
+      },
+      {
+        name: 'mail',
+        domain: 'example.com',
+        status: 'active',
+        recordType: 'MX',
+        value: 'mail.example.com',
+        priority: 10,
+        description: 'Mail server'
+      }
+    ];
+    
+    await Subdomain.insertMany(sampleSubdomains);
+    
+    res.status(201).json({ 
+      message: 'Sample subdomains created successfully',
+      count: sampleSubdomains.length
+    });
+  } catch (error) {
+    console.error('Error creating sample subdomains:', error);
+    res.status(500).json({ message: 'Error creating sample subdomains' });
+  }
+});
+
+module.exports = router; 
