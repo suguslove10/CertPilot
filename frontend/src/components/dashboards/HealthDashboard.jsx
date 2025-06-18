@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../utils/api';
 import {
   Box,
   Card,
@@ -39,7 +39,7 @@ const HealthDashboard = () => {
   const [healthData, setHealthData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
+  const [refreshInterval, setRefreshInterval] = useState(10000); // 10 seconds (reduced from 30)
 
   useEffect(() => {
     console.log('HealthDashboard component mounted');
@@ -56,7 +56,14 @@ const HealthDashboard = () => {
     try {
       setLoading(true);
       console.log('Fetching health data from API...');
-      const response = await axios.get('/api/health/detailed');
+      
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const apiUrl = `/health/detailed?_t=${timestamp}`;
+      
+      console.log('API URL:', apiUrl);
+      
+      const response = await api.get(apiUrl);
       console.log('Health data received:', response.data);
       setHealthData(response.data);
       setError(null);

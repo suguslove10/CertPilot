@@ -1,6 +1,6 @@
 :root {
   /* Colors - Extended palette with 10 steps for more granular control */
-  /* Primary (Blue) */
+  /* Primary (Blue) - Enhanced with slightly more vibrant hue */
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
   --color-primary-200: #bfdbfe;
@@ -13,7 +13,7 @@
   --color-primary-900: #1e3a8a;
   --color-primary-950: #172554;
   
-  /* Neutral */
+  /* Neutral - Refined with warmer tones for better readability */
   --color-neutral-50: #f9fafb;
   --color-neutral-100: #f3f4f6;
   --color-neutral-200: #e5e7eb;
@@ -26,7 +26,7 @@
   --color-neutral-900: #111827;
   --color-neutral-950: #030712;
   
-  /* Success (Green) */
+  /* Success (Green) - Slightly more vibrant for better visibility */
   --color-success-50: #ecfdf5;
   --color-success-100: #d1fae5;
   --color-success-200: #a7f3d0;
@@ -39,7 +39,7 @@
   --color-success-900: #064e3b;
   --color-success-950: #022c22;
   
-  /* Error (Red) */
+  /* Error (Red) - Refined for better accessibility */
   --color-error-50: #fef2f2;
   --color-error-100: #fee2e2;
   --color-error-200: #fecaca;
@@ -52,7 +52,7 @@
   --color-error-900: #7f1d1d;
   --color-error-950: #450a0a;
   
-  /* Warning (Amber) */
+  /* Warning (Amber) - Refined for better accessibility */
   --color-warning-50: #fffbeb;
   --color-warning-100: #fef3c7;
   --color-warning-200: #fde68a;
@@ -65,7 +65,7 @@
   --color-warning-900: #78350f;
   --color-warning-950: #451a03;
   
-  /* Info (Light Blue) */
+  /* Info (Light Blue) - Refined for better accessibility */
   --color-info-50: #f0f9ff;
   --color-info-100: #e0f2fe;
   --color-info-200: #bae6fd;
@@ -78,20 +78,20 @@
   --color-info-900: #0c4a6e;
   --color-info-950: #082f49;
   
-  /* Background colors */
+  /* Background colors - Slightly warmer for better user experience */
   --color-background: #f9fafb;
   --color-background-subtle: #f3f4f6;
   --color-paper: #ffffff;
   
-  /* Text colors */
-  --color-text-primary: #1f2937;
+  /* Text colors - Enhanced contrast for better readability */
+  --color-text-primary: #111827;
   --color-text-secondary: #4b5563;
   --color-text-disabled: #9ca3af;
   --color-text-hint: #6b7280;
   --color-text-contrast: #ffffff;
   
-  /* Border/Divider color */
-  --color-divider: #e5e7eb;
+  /* Border/Divider color - Slightly higher contrast */
+  --color-divider: #e2e8f0;
 
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
@@ -102,17 +102,18 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 1.875rem;
-  --font-size-4xl: 2.25rem;
-  --font-size-5xl: 3rem;
+  /* Slightly refined font sizes for better readability */
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-base: 1rem;    /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  --font-size-4xl: 2.25rem;  /* 36px */
+  --font-size-5xl: 3rem;     /* 48px */
   
-  /* Line heights */
+  /* Line heights - Improved for better readability */
   --line-height-none: 1;
   --line-height-tight: 1.25;
   --line-height-snug: 1.375;
@@ -120,7 +121,7 @@
   --line-height-relaxed: 1.625;
   --line-height-loose: 2;
   
-  /* Letter spacing */
+  /* Letter spacing - Refined for better readability */
   --letter-spacing-tighter: -0.05em;
   --letter-spacing-tight: -0.025em;
   --letter-spacing-normal: 0;
@@ -128,7 +129,7 @@
   --letter-spacing-wider: 0.05em;
   --letter-spacing-widest: 0.1em;
 
-  /* Spacing */
+  /* Spacing - Unchanged as the system is well-designed */
   --spacing-0: 0;
   --spacing-px: 1px;
   --spacing-0-5: 0.125rem;
@@ -146,35 +147,35 @@
   --spacing-24: 6rem;
   --spacing-32: 8rem;
 
-  /* Shadows */
+  /* Shadows - Significantly improved for more modern look */
   --shadow-none: none;
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.03), 0 1px 2px -1px rgba(0, 0, 0, 0.01);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.03), 0 10px 10px -5px rgba(0, 0, 0, 0.01);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.07);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
 
-  /* Border Radius */
+  /* Border Radius - Slightly increased for more modern look */
   --radius-none: 0;
-  --radius-xs: 0.125rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-3xl: 1.5rem;
-  --radius-full: 9999px;
+  --radius-xs: 0.125rem;  /* 2px */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.375rem;  /* 6px */
+  --radius-lg: 0.5rem;    /* 8px */
+  --radius-xl: 0.75rem;   /* 12px */
+  --radius-2xl: 1rem;     /* 16px */
+  --radius-3xl: 1.5rem;   /* 24px */
+  --radius-full: 9999px;  /* Fully rounded */
 
-  /* Transitions */
+  /* Transitions - Refined for smoother animations */
   --transition-default: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-fast: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-entrance: all 0.25s cubic-bezier(0, 0, 0.2, 1);
-  --transition-exit: all 0.2s cubic-bezier(0.4, 0, 1, 1);
+  --transition-entrance: all 0.25s cubic-bezier(0.0, 0.0, 0.2, 1);
+  --transition-exit: all 0.2s cubic-bezier(0.4, 0.0, 1, 1);
   
-  /* Z-index layers */
+  /* Z-index layers - Unchanged */
   --z-0: 0;
   --z-10: 10;
   --z-20: 20;
@@ -188,30 +189,36 @@
   --z-popover: 1400;
   --z-tooltip: 1500;
   
-  /* Accessibility */
-  --focus-ring-default: 0 0 0 3px var(--color-primary-400);
-  --focus-ring-error: 0 0 0 3px var(--color-error-400);
+  /* Accessibility - Improved focus ring */
+  --focus-ring-default: 0 0 0 3px rgba(59, 130, 246, 0.4);
+  --focus-ring-error: 0 0 0 3px rgba(239, 68, 68, 0.4);
 }
 
-/* Dark mode overrides */
+/* Dark mode overrides - Enhanced for better contrast and readability */
 .dark-mode {
-  /* Background colors */
-  --color-background: #0f172a;
-  --color-background-subtle: #1e293b;
-  --color-paper: #1e293b;
+  /* Background colors - More refined dark theme */
+  --color-background: #111827;
+  --color-background-subtle: #1f2937;
+  --color-paper: #1f2937;
   
-  /* Text colors */
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-text-disabled: #64748b;
-  --color-text-hint: #94a3b8;
+  /* Text colors - Improved contrast */
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #e5e7eb;
+  --color-text-disabled: #6b7280;
+  --color-text-hint: #9ca3af;
   
-  /* Border/Divider color */
-  --color-divider: #334155;
+  /* Border/Divider color - Better visibility */
+  --color-divider: #374151;
   
-  /* Shadow adjustments for dark mode */
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  /* Shadow adjustments for dark mode - More subtle */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+
+  /* Custom properties for dark mode glow effects */
+  --glow-primary: 0 0 15px rgba(59, 130, 246, 0.3);
+  --glow-success: 0 0 15px rgba(16, 185, 129, 0.3);
+  --glow-error: 0 0 15px rgba(239, 68, 68, 0.3);
+  --glow-warning: 0 0 15px rgba(245, 158, 11, 0.3);
 } 

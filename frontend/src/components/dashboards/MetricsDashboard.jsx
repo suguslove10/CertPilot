@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../utils/api';
 import { 
   Card, 
   CardContent, 
@@ -34,7 +34,7 @@ const MetricsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
-  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds
+  const [refreshInterval, setRefreshInterval] = useState(10000); // 10 seconds (reduced from 30)
 
   useEffect(() => {
     console.log('MetricsDashboard component mounted');
@@ -51,8 +51,14 @@ const MetricsDashboard = () => {
     try {
       setLoading(true);
       console.log('Fetching metrics data from API...');
-      console.log('API URL:', '/api/metrics');
-      const response = await axios.get('/api/metrics');
+      
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
+      const apiUrl = `/metrics?_t=${timestamp}`;
+      
+      console.log('API URL:', apiUrl);
+      
+      const response = await api.get(apiUrl);
       console.log('Metrics data received:', response.data);
       setMetrics(response.data);
       setError(null);

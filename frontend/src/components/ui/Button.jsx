@@ -1,10 +1,11 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import './Button.css';
 
 /**
  * Button component that follows the CertPilot design system
  * Accessible, responsive, and follows WCAG 2.1 AA standards
+ * Enhanced with ripple effect and improved interactions
  */
 const Button = forwardRef(({ 
   children, 
@@ -20,6 +21,7 @@ const Button = forwardRef(({
   onClick,
   type = 'button',
   ariaLabel,
+  ripple = true,
   ...props 
 }, ref) => {
   const baseClasses = 'btn';
@@ -28,6 +30,7 @@ const Button = forwardRef(({
   const widthClass = fullWidth ? 'btn-full-width' : '';
   const disabledClass = disabled || loading ? 'btn-disabled' : '';
   const loadingClass = loading ? 'btn-loading' : '';
+  const rippleClass = ripple && !disabled && !loading ? 'btn-ripple' : '';
   
   const classes = [
     baseClasses,
@@ -36,16 +39,72 @@ const Button = forwardRef(({
     widthClass,
     disabledClass,
     loadingClass,
+    rippleClass,
     className
   ].filter(Boolean).join(' ');
   
+  // Ripple effect state and refs
+  const [ripples, setRipples] = useState([]);
+  const buttonRef = useRef(null);
+
+  // Clean up ripples after animation completes
+  useEffect(() => {
+    const timeouts = [];
+    
+    ripples.forEach((ripple, i) => {
+      const timeout = setTimeout(() => {
+        setRipples(prevRipples => prevRipples.filter((_, index) => index !== i));
+      }, 600); // Match the animation duration
+      
+      timeouts.push(timeout);
+    });
+    
+    return () => {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+    };
+  }, [ripples]);
+
+  // Handle click with ripple effect
+  const handleClick = (e) => {
+    if (disabled || loading || !ripple) {
+      if (onClick) onClick(e);
+      return;
+    }
+    
+    const button = buttonRef.current;
+    if (!button) {
+      if (onClick) onClick(e);
+      return;
+    }
+
+    // Calculate ripple position relative to button
+    const rect = button.getBoundingClientRect();
+    const left = e.clientX - rect.left;
+    const top = e.clientY - rect.top;
+    
+    const ripple = { left, top, id: Date.now() };
+    setRipples(prevRipples => [...prevRipples, ripple]);
+    
+    if (onClick) onClick(e);
+  };
+  
   return (
     <button
-      ref={ref}
+      ref={(node) => {
+        // Merge refs
+        buttonRef.current = node;
+        if (ref) {
+          if (typeof ref === 'function') {
+            ref(node);
+          } else {
+            ref.current = node;
+          }
+        }
+      }}
       type={type}
       className={classes}
       disabled={disabled || loading}
-      onClick={onClick}
+      onClick={handleClick}
       aria-label={ariaLabel || typeof children === 'string' ? children : undefined}
       aria-busy={loading ? 'true' : 'false'}
       {...props}
@@ -68,6 +127,17 @@ const Button = forwardRef(({
       {icon && iconPosition === 'right' && !loading && (
         <span className="btn-icon btn-icon-right" aria-hidden="true">{icon}</span>
       )}
+      
+      {ripple && ripples.map(ripple => (
+        <span 
+          key={ripple.id}
+          className="btn-ripple-effect"
+          style={{
+            left: ripple.left,
+            top: ripple.top
+          }}
+        />
+      ))}
     </button>
   );
 });
@@ -101,6 +171,8 @@ Button.propTypes = {
   type: PropTypes.oneOf(['button', 'submit', 'reset']),
   /** Accessible label (if button only has icon or needs description) */
   ariaLabel: PropTypes.string,
+  /** Enable ripple effect */
+  ripple: PropTypes.bool,
 };
 
 export default Button; 

@@ -18,7 +18,7 @@ http:
     g-thesugu-com:
       loadBalancer:
         servers:
-          - url: http://13.201.34.251:8081
+          - url: http://3.111.214.145:8081
   middlewares:
     g-thesugu-com-redirect:
       redirectScheme:

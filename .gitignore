@@ -8,8 +8,12 @@ backend.env
 .env.development
 .env.test
 .env.production
-
-
+.backend.env
+.backend.env.local
+.backend.env.development
+.backend.env.test
+.backend.env.production
+.backend.env.bak
 # Build output
 dist/
 build/

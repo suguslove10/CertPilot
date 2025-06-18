@@ -1,0 +1,26 @@
+http:
+  routers:
+    f-thesugu-com:
+      rule: Host(`f.thesugu.com`)
+      service: f-thesugu-com
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+    f-thesugu-com-redirect:
+      rule: Host(`f.thesugu.com`)
+      entryPoints:
+        - web
+      middlewares:
+        - f-thesugu-com-redirect
+      service: f-thesugu-com
+  services:
+    f-thesugu-com:
+      loadBalancer:
+        servers:
+          - url: http://13.201.11.237:8090
+  middlewares:
+    f-thesugu-com-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true

@@ -311,14 +311,16 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-// Get server status
+// @route   GET /api/server-detection/status
+// @desc    Get server detection status
+// @access  Public (temporarily for testing)
 router.get('/status', async (req, res) => {
   try {
-    // Return active status
-    res.json({ status: 'active', lastCheck: new Date() });
+    // For demo purposes, return a fixed status
+    return res.json({ status: 'active' });
   } catch (error) {
-    console.error('Error getting server status:', error);
-    res.status(500).json({ message: 'Error fetching server status' });
+    console.error('Error getting server detection status:', error);
+    res.status(500).json({ message: 'Error getting server detection status' });
   }
 });
 

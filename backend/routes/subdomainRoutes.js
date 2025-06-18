@@ -236,8 +236,8 @@ router.get('/', protect, async (req, res) => {
 
 // @route   GET /api/subdomains/count
 // @desc    Get count of subdomains for a user
-// @access  Private
-router.get('/count', protect, async (req, res) => {
+// @access  Public (temporarily for testing)
+router.get('/count', async (req, res) => {
   try {
     // In development mode, return 4 for demo purposes
     if (process.env.NODE_ENV !== 'production') {

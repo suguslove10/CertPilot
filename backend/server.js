@@ -244,6 +244,151 @@ if (process.env.CLOUDFLARE_API_TOKEN) {
     }
   });
 
+  // Create a new DNS record
+  app.post('/api/cloudflare/zones/:zoneId/dns-records', async (req, res) => {
+    try {
+      const { zoneId } = req.params;
+      const { type, name, content, ttl, proxied, priority, port, service, protocol } = req.body;
+      
+      // Construct record data based on record type
+      const recordData = { type, name, content, ttl: ttl || 1, proxied: proxied !== undefined ? proxied : false };
+      
+      // Add additional fields based on record type
+      if (type === 'MX' && priority !== undefined) {
+        recordData.priority = priority;
+      } else if (type === 'SRV') {
+        if (priority !== undefined) recordData.priority = priority;
+        if (port !== undefined) recordData.port = port;
+        if (service !== undefined) recordData.service = service;
+        if (protocol !== undefined) recordData.protocol = protocol;
+      }
+      
+      const result = await cloudflareService.createDnsRecord(
+        process.env.CLOUDFLARE_API_TOKEN, 
+        zoneId, 
+        recordData
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating DNS record:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error creating DNS record',
+        error: error.message
+      });
+    }
+  });
+
+  // Update a DNS record
+  app.put('/api/cloudflare/zones/:zoneId/dns-records/:recordId', async (req, res) => {
+    try {
+      const { zoneId, recordId } = req.params;
+      const { type, name, content, ttl, proxied, priority, port, service, protocol } = req.body;
+      
+      // Construct record data based on record type
+      const recordData = { type, name, content, ttl: ttl || 1, proxied: proxied !== undefined ? proxied : false };
+      
+      // Add additional fields based on record type
+      if (type === 'MX' && priority !== undefined) {
+        recordData.priority = priority;
+      } else if (type === 'SRV') {
+        if (priority !== undefined) recordData.priority = priority;
+        if (port !== undefined) recordData.port = port;
+        if (service !== undefined) recordData.service = service;
+        if (protocol !== undefined) recordData.protocol = protocol;
+      }
+      
+      const result = await cloudflareService.updateDnsRecord(
+        process.env.CLOUDFLARE_API_TOKEN, 
+        zoneId, 
+        recordId, 
+        recordData
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error updating DNS record:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error updating DNS record',
+        error: error.message
+      });
+    }
+  });
+
+  // Delete a DNS record
+  app.delete('/api/cloudflare/zones/:zoneId/dns-records/:recordId', async (req, res) => {
+    try {
+      const { zoneId, recordId } = req.params;
+      const result = await cloudflareService.deleteDnsRecord(
+        process.env.CLOUDFLARE_API_TOKEN, 
+        zoneId, 
+        recordId
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error deleting DNS record:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting DNS record',
+        error: error.message
+      });
+    }
+  });
+
+  // Create ACME challenge TXT record for certificate validation
+  app.post('/api/cloudflare/zones/:zoneId/acme-challenge', async (req, res) => {
+    try {
+      const { zoneId } = req.params;
+      const { recordName, recordValue } = req.body;
+      
+      if (!recordName || !recordValue) {
+        return res.status(400).json({
+          success: false,
+          message: 'Record name and value are required'
+        });
+      }
+      
+      const result = await cloudflareService.createAcmeChallengeTxtRecord(
+        process.env.CLOUDFLARE_API_TOKEN,
+        zoneId,
+        recordName,
+        recordValue
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error creating ACME challenge record:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error creating ACME challenge record',
+        error: error.message
+      });
+    }
+  });
+
+  // Purge cache for a zone
+  app.post('/api/cloudflare/zones/:zoneId/purge-cache', async (req, res) => {
+    try {
+      const { zoneId } = req.params;
+      const result = await cloudflareService.purgeCache(
+        process.env.CLOUDFLARE_API_TOKEN,
+        zoneId
+      );
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error purging cache:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error purging cache',
+        error: error.message
+      });
+    }
+  });
+
   // Other Cloudflare endpoints...
   // We'll add more as needed
 

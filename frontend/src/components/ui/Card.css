@@ -1,18 +1,22 @@
 /* 
  * Card Component
  * Modern, clean, and accessible design
+ * Enhanced with subtle animations and refined visuals
  */
 
 .card {
   background-color: var(--color-paper);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: var(--transition-default);
   position: relative;
   width: auto;
   height: auto;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform, box-shadow;
 }
 
 /* Focus state for keyboard navigation */
@@ -60,18 +64,18 @@
   width: 100%;
 }
 
-/* Clickable state */
+/* Clickable state - enhanced hover effect */
 .card-clickable {
   cursor: pointer;
 }
 
 .card-clickable:hover, .card-hoverable:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-lg);
 }
 
 .card-clickable:active {
-  transform: translateY(0);
+  transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
@@ -100,12 +104,12 @@
   padding: var(--spacing-8);
 }
 
-/* Card header */
+/* Card header - refined styling */
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: var(--spacing-4) var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-4) var(--spacing-3);
   border-bottom: 1px solid var(--color-divider);
 }
 
@@ -153,6 +157,10 @@
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
+  .card {
+    border-radius: var(--radius-lg); /* Slightly reduced radius on mobile */
+  }
+  
   .card-header,
   .card-content,
   .card-footer {
@@ -181,6 +189,17 @@
   border-color: var(--color-divider);
 }
 
+.dark-mode .card-elevation-lg,
+.dark-mode .card-elevation-xl,
+.dark-mode .card-elevation-2xl {
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Primary card variant for dark mode */
+.dark-mode .card-primary {
+  box-shadow: var(--shadow-md), 0 0 15px rgba(59, 130, 246, 0.3);
+}
+
 /* Accessible focus styles */
 @media (prefers-reduced-motion: reduce) {
   .card {
@@ -192,4 +211,38 @@
   .card-clickable:active {
     transform: none;
   }
+}
+
+/* New: Card variants for different content types */
+.card-compact .card-header {
+  padding: var(--spacing-3) var(--spacing-4) var(--spacing-2);
+}
+
+.card-compact .card-content {
+  padding: var(--spacing-3);
+}
+
+.card-compact .card-footer {
+  padding: var(--spacing-2) var(--spacing-4);
+}
+
+/* Card with gradient background option */
+.card-gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+  color: white;
+}
+
+.card-gradient-primary .card-title,
+.card-gradient-primary .card-subtitle {
+  color: white;
+}
+
+/* Enhanced hover effects for interactive cards */
+.card-interactive {
+  transition: var(--transition-default);
+}
+
+.card-interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
 } 
